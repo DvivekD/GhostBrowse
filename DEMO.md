@@ -65,7 +65,7 @@
 
 Judges can test the live system directly on their phones or laptops:
 
-1. Open **[`https://web-7ice5379z-reis-projects-8a085d28.vercel.app`](https://web-7ice5379z-reis-projects-8a085d28.vercel.app)**.
+1. Open **[`https://ghostbrowser-engine.vercel.app`](https://ghostbrowser-engine.vercel.app)**.
 2. Click any of the **Quick Demo Chips**:
    - `BLR → COK (Dinner & Baggage)`
    - `DEL → BOM (Morning Flight)`
