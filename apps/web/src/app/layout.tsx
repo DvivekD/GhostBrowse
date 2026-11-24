@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "GhostBrowser — Autonomous Zero-Click Web Execution Engine",
-  description: "Beyond the Browser: Autonomous AI Swarm navigating the web into 1-Action Approval Cards with verified DOM proof.",
+  description: "Swiss minimalist autonomous execution engine converting natural language intent into 1-Action Approval Cards with verified cryptographic DOM proof.",
 };
 
 export default function RootLayout({
@@ -12,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-[#030712] text-slate-100 antialiased selection:bg-[#00f0ff] selection:text-black">
+    <html lang="en" className="light">
+      <body className="min-h-screen bg-[#fafafa] text-[#09090b] antialiased selection:bg-black selection:text-white">
         {children}
       </body>
     </html>

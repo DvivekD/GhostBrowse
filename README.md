@@ -12,7 +12,7 @@
 ### **AUTONOMOUS ZERO-CLICK WEB EXECUTION ENGINE**
 *Turning the entire internet into a single, executable API call with real-time cryptographic DOM proof.*
 
-[![Live MVP Prototype](https://img.shields.io/badge/LIVE_MVP_PROTOTYPE-Vercel-00f0ff?style=for-the-badge&logo=vercel&logoColor=black)](https://web-r7l3t9i0k-reis-projects-8a085d28.vercel.app)
+[![Live MVP Prototype](https://img.shields.io/badge/LIVE_MVP_PROTOTYPE-Vercel-00f0ff?style=for-the-badge&logo=vercel&logoColor=black)](https://web-7ice5379z-reis-projects-8a085d28.vercel.app)
 [![Hackathon](https://img.shields.io/badge/wHACKiest_2026-Track_2:_Beyond_The_Browser-ff0055?style=for-the-badge)](https://github.com/DvivekD/GhostBrowse)
 [![Next.js 16](https://img.shields.io/badge/Next.js_16-Turbopack-white?style=for-the-badge&logo=next.js&logoColor=black)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Async_Engine-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -24,8 +24,8 @@
 
 <br/>
 
-### 🌐 **[LAUNCH LIVE INTERACTIVE PROTOTYPE](https://web-r7l3t9i0k-reis-projects-8a085d28.vercel.app)**
-**`https://web-r7l3t9i0k-reis-projects-8a085d28.vercel.app`**
+### 🌐 **[LAUNCH LIVE INTERACTIVE PROTOTYPE](https://web-7ice5379z-reis-projects-8a085d28.vercel.app)**
+**`https://web-7ice5379z-reis-projects-8a085d28.vercel.app`**
 
 [⚡ Architecture Blueprint](ARCHITECTURE.md) • [🎬 Demo Script & Walkthrough](DEMO.md) • [🛡️ Merkle Proof Spec](docs/MERKLE_SPEC.md)
 
@@ -214,5 +214,5 @@ py -3.12 -m unittest ghost_engine.tests.test_mission
 - **Event**: wHACKiest 2026
 - **Track**: Track 2: Beyond the Browser — Reimagine How We Use the Web
 - **Built By**: [@DvivekD](https://github.com/DvivekD)
-- **Live MVP**: [web-r7l3t9i0k-reis-projects-8a085d28.vercel.app](https://web-r7l3t9i0k-reis-projects-8a085d28.vercel.app)
+- **Live MVP**: [web-7ice5379z-reis-projects-8a085d28.vercel.app](https://web-7ice5379z-reis-projects-8a085d28.vercel.app)
 - **License**: MIT
