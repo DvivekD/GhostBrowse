@@ -590,7 +590,7 @@ class UniversalWorker:
                     budget = float(getattr(params, "max_price_inr", 0) or 380.0)
                     restaurant = "Meghana Foods (Indiranagar)" if "biryani" in dish.lower() or "chicken" in dish.lower() else "Gourmet Kitchen"
                     order_url = "https://www.swiggy.com/checkout"
-                    rest_url = "https://www.swiggy.com/city/bangalore/meghana-foods-5th-block-koramangala-rest10575" if "meghana" in restaurant.lower() else f"https://www.swiggy.com/search?query={quote_plus(dish)}"
+                    rest_url = f"https://www.swiggy.com/search?query={quote_plus(dish)}"
 
                     raw_html = f"""
                     <div class="restaurant-menu-card" data-portal="Swiggy">
@@ -653,7 +653,7 @@ class UniversalWorker:
                         except Exception:
                             pass
 
-                    airline_checkout_url = f"https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode={origin}&destinationCityCode={destination}&paxNum=1"
+                    airline_checkout_url = f"https://www.akasaair.com/flight-search?trip=oneway&origin={origin}&dest={destination}&date={date}&pax=1-ADT&search=true&currency=INR"
                     try:
                         flight_card = await page.query_selector("li.pIav2d, div[role='button']:has-text('₹')")
                         if flight_card:
@@ -994,7 +994,7 @@ class UniversalWorker:
             delivery_fee_inr=0.0,
             coupon_applied=dish_data["offer"],
             order_deep_link="https://www.swiggy.com/checkout",
-            source_url="https://www.swiggy.com/city/bangalore/meghana-foods-5th-block-koramangala-rest10575",
+            source_url=f"https://www.swiggy.com/search?query={quote_plus(dish_data['dish'])}",
             booking_deep_link="https://www.swiggy.com/checkout",
             merkle_proof=merkle_proof,
             site_name=self.site_name,
@@ -1226,8 +1226,8 @@ class UniversalWorker:
             price_inr=price,
             meal_included=meal_included,
             baggage_allowance="7kg Cabin + 15kg Check-in (Included)",
-            source_url=f"https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode={origin}&destinationCityCode={destination}&paxNum=1",
-            booking_deep_link=f"https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode={origin}&destinationCityCode={destination}&paxNum=1",
+            source_url=f"https://www.akasaair.com/flight-search?trip=oneway&origin={origin}&dest={destination}&date={date}&pax=1-ADT&search=true&currency=INR",
+            booking_deep_link=f"https://www.akasaair.com/flight-search?trip=oneway&origin={origin}&dest={destination}&date={date}&pax=1-ADT&search=true&currency=INR",
             merkle_proof=merkle_proof,
             site_name=self.site_name,
         )

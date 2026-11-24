@@ -184,7 +184,7 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
                         delivery_time_mins=25,
                         coupon_applied="GOURMET_PASS",
                         order_deep_link="https://www.swiggy.com/checkout",
-                        source_url="https://www.swiggy.com/city/bangalore/meghana-foods-5th-block-koramangala-rest10575",
+                        source_url="https://www.swiggy.com/search?query=Butter+Chicken+Garlic+Naan",
                         booking_deep_link="https://www.swiggy.com/checkout",
                         site_name="Swiggy Gourmet",
                         merkle_proof=mock_proof
@@ -252,8 +252,8 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
                         price_inr=2850.0,
                         meal_included=True,
                         baggage_allowance="7kg Cabin + 15kg Check-in (Included)",
-                        source_url=f"https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode={getattr(params, 'origin', 'BLR')}&destinationCityCode={getattr(params, 'destination', 'COK')}&paxNum=1",
-                        booking_deep_link=f"https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode={getattr(params, 'origin', 'BLR')}&destinationCityCode={getattr(params, 'destination', 'COK')}&paxNum=1",
+                        source_url=f"https://www.akasaair.com/flight-search?trip=oneway&origin={getattr(params, 'origin', 'BLR')}&dest={getattr(params, 'destination', 'COK')}&date={getattr(params, 'date', '2026-11-26')}&pax=1-ADT&search=true&currency=INR",
+                        booking_deep_link=f"https://www.akasaair.com/flight-search?trip=oneway&origin={getattr(params, 'origin', 'BLR')}&dest={getattr(params, 'destination', 'COK')}&date={getattr(params, 'date', '2026-11-26')}&pax=1-ADT&search=true&currency=INR",
                         merkle_proof=mock_proof
                     )
                 ]
