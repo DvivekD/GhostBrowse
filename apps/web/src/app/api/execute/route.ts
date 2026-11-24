@@ -396,6 +396,12 @@ async function initSteelPlaywright(apiKey: string): Promise<SteelPlaywrightConte
   }
 }
 
+function extractTextContent(scrapeData: any): string {
+  if (!scrapeData || !scrapeData.content) return "";
+  if (typeof scrapeData.content === "string") return scrapeData.content;
+  return `${scrapeData.content.markdown || ""}\n${scrapeData.content.html || ""}`;
+}
+
 async function steelScrape(apiKey: string, sessionId: string, url: string) {
   try {
     const res = await fetch("https://api.steel.dev/v1/scrape", {
@@ -404,7 +410,7 @@ async function steelScrape(apiKey: string, sessionId: string, url: string) {
         "steel-api-key": apiKey,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ url, sessionId })
+      body: JSON.stringify({ url, sessionId, format: ["html", "markdown"] })
     });
     if (!res.ok) return null;
     return await res.json();
@@ -615,8 +621,9 @@ async function handleExecutionStream(query: string) {
                 if (pLink.text && pLink.text.length > 5) scrapedProductTitle = pLink.text;
                 await steelScrape(steelApiKey, steelPlaywright.sessionId, scrapedProductHref);
               }
-              if (scrapeData.content) {
-                const priceMatch = scrapeData.content.match(/₹[\d,]+/);
+              const contentText = extractTextContent(scrapeData);
+              if (contentText) {
+                const priceMatch = contentText.match(/₹[\d,]+/);
                 if (priceMatch) {
                   scrapedPriceText = priceMatch[0];
                   const num = parseInt(priceMatch[0].replace(/[^\d]/g, ""), 10);
@@ -735,8 +742,9 @@ async function handleExecutionStream(query: string) {
               } else {
                 restaurantUrl = swiggySearchUrl;
               }
-              if (scrapeData.content) {
-                const priceMatch = scrapeData.content.match(/₹\s*\d+/);
+              const foodContent = extractTextContent(scrapeData);
+              if (foodContent) {
+                const priceMatch = foodContent.match(/₹\s*\d+/);
                 if (priceMatch) {
                   dishPriceFormatted = priceMatch[0].replace(/\s+/g, "");
                   const num = parseInt(dishPriceFormatted.replace(/[^\d]/g, ""), 10);
@@ -984,8 +992,12 @@ async function handleExecutionStream(query: string) {
           } else {
             // Zero-dependency fallback over Steel scrape
             const scrapeData = await steelScrape(steelApiKey, steelPlaywright.sessionId, googleFlightsUrl);
-            if (scrapeData && scrapeData.content) {
-              const priceMatches = scrapeData.content.match(/₹[\d,]+/g);
+            const flightContent = extractTextContent(scrapeData);
+            if (flightContent) {
+              const airlines = ["Akasa Air", "IndiGo", "Air India", "Air India Express", "SpiceJet"];
+              const foundAirline = airlines.find((a) => flightContent.includes(a));
+              if (foundAirline) airline = foundAirline;
+              const priceMatches = flightContent.match(/₹[\d,]+/g);
               if (priceMatches && priceMatches.length > 0) {
                 flightPriceFormatted = priceMatches[0];
                 const numeric = parseInt(priceMatches[0].replace(/[^\d]/g, ""), 10);
