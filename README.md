@@ -12,7 +12,7 @@
 ### **AUTONOMOUS ZERO-CLICK WEB EXECUTION ENGINE**
 *Turning the entire internet into a single, executable API call with real-time cryptographic DOM proof.*
 
-[![Live MVP Prototype](https://img.shields.io/badge/LIVE_MVP_PROTOTYPE-Vercel-00f0ff?style=for-the-badge&logo=vercel&logoColor=black)](https://ghostbrowser-engine.vercel.app)
+[![Live MVP Prototype](https://img.shields.io/badge/LIVE_MVP_PROTOTYPE-Vercel-00f0ff?style=for-the-badge&logo=vercel&logoColor=black)](https://ghostbrowse-blush.vercel.app)
 [![Hackathon](https://img.shields.io/badge/wHACKiest_2026-Track_2:_Beyond_The_Browser-ff0055?style=for-the-badge)](https://github.com/DvivekD/GhostBrowse)
 [![Next.js 16](https://img.shields.io/badge/Next.js_16-Turbopack-white?style=for-the-badge&logo=next.js&logoColor=black)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Async_Engine-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -24,8 +24,8 @@
 
 <br/>
 
-### 🌐 **[LAUNCH LIVE INTERACTIVE PROTOTYPE](https://ghostbrowser-engine.vercel.app)**
-**`https://ghostbrowser-engine.vercel.app`**
+### 🌐 **[LAUNCH LIVE INTERACTIVE PROTOTYPE](https://ghostbrowse-blush.vercel.app)**
+**`https://ghostbrowse-blush.vercel.app`**
 
 [⚡ Architecture Blueprint](ARCHITECTURE.md) • [🎬 Demo Script & Walkthrough](DEMO.md) • [🛡️ Merkle Proof Spec](docs/MERKLE_SPEC.md)
 
@@ -214,5 +214,5 @@ py -3.12 -m unittest ghost_engine.tests.test_mission
 - **Event**: wHACKiest 2026
 - **Track**: Track 2: Beyond the Browser — Reimagine How We Use the Web
 - **Built By**: [@DvivekD](https://github.com/DvivekD)
-- **Live MVP**: [ghostbrowser-engine.vercel.app](https://ghostbrowser-engine.vercel.app)
+- **Live MVP**: [ghostbrowse-blush.vercel.app](https://ghostbrowse-blush.vercel.app) (also aliased at [ghostbrowser-engine.vercel.app](https://ghostbrowser-engine.vercel.app))
 - **License**: MIT

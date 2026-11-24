@@ -65,7 +65,7 @@
 
 Judges can test the live system directly on their phones or laptops:
 
-1. Open **[`https://ghostbrowser-engine.vercel.app`](https://ghostbrowser-engine.vercel.app)**.
+1. Open **[`https://ghostbrowse-blush.vercel.app`](https://ghostbrowse-blush.vercel.app)** (or local `http://localhost:3000`).
 2. Click any of the **Quick Demo Chips**:
    - `BLR → COK (Dinner & Baggage)`
    - `DEL → BOM (Morning Flight)`
