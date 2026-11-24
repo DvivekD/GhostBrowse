@@ -231,6 +231,7 @@ function PayContent() {
   const displayPriceNumber = !isNaN(parsedPriceNumber) ? parsedPriceNumber : config.basePrice;
   const displayAddress = queryAddress || config.defaultAddress;
   const displayPassenger = queryPassenger || config.defaultPassenger;
+  const isDirectOrder = Boolean(queryTitle || queryMerchant || queryAmount || queryPrice);
 
   // Payment states
   const [paymentRail, setPaymentRail] = useState<"upi" | "card" | "netbanking">("upi");
@@ -489,42 +490,67 @@ function PayContent() {
       {/* Main Checkout Viewport */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 md:py-12 flex flex-col gap-8">
         
-        {/* Domain Switcher Bar (Supports All 5 Verified Verticals) */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs font-mono text-zinc-500">
-            <span>PRE-LOADED MERCHANT VERTICALS</span>
-            <span className="text-[10px] text-zinc-400">SELECT TO TEST AUTHENTIC GATEWAYS</span>
+        {/* Direct Order Lock Banner vs Exploration Selector */}
+        {isDirectOrder ? (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl bg-zinc-900 border border-emerald-500/30 text-xs font-mono shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <div>
+                <span className="font-bold text-white tracking-wide">
+                  LOCKED CHECKOUT SESSION &bull; {displayMerchant.toUpperCase()}
+                </span>
+                <span className="text-[11px] text-zinc-400 block font-sans">
+                  Cart pre-filled &amp; inventory held by GhostBrowser. Only payment authorization required.
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-emerald-400 border border-zinc-700">
+                PNR: {pnrNumber}
+              </span>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                PAYMENT ONLY
+              </span>
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {Object.values(DOMAIN_CONFIGS).map((item) => {
-              const isSelected = selectedDomain === item.id;
-              const TabIcon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setSelectedDomain(item.id);
-                    setIsComplete(false);
-                    setPnrNumber(`${item.pnrPrefix}${Math.floor(1000 + Math.random() * 9000)}`);
-                  }}
-                  className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition font-sans text-xs cursor-pointer ${
-                    isSelected
-                      ? "bg-black dark:bg-white text-white dark:text-black font-semibold border-black dark:border-white shadow-sm"
-                      : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600"
-                  }`}
-                >
-                  <TabIcon className={`w-4 h-4 shrink-0 ${isSelected ? "text-white dark:text-black" : "text-zinc-400"}`} />
-                  <div className="truncate">
-                    <div className="truncate text-xs font-bold leading-tight">{item.merchantLogoText}</div>
-                    <div className={`text-[10px] truncate ${isSelected ? "text-zinc-300 dark:text-zinc-700" : "text-zinc-500"}`}>
-                      {item.basePrice > 0 ? `₹${item.basePrice.toLocaleString()}` : "Free"}
+        ) : (
+          /* Domain Switcher Bar (Supports All 5 Verified Verticals) */
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs font-mono text-zinc-500">
+              <span>EXPLORE PRE-LOADED MERCHANT VERTICALS</span>
+              <span className="text-[10px] text-zinc-400">SELECT TO TEST AUTHENTIC GATEWAYS</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {Object.values(DOMAIN_CONFIGS).map((item) => {
+                const isSelected = selectedDomain === item.id;
+                const TabIcon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setSelectedDomain(item.id);
+                      setIsComplete(false);
+                      setPnrNumber(`${item.pnrPrefix}${Math.floor(1000 + Math.random() * 9000)}`);
+                    }}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition font-sans text-xs cursor-pointer ${
+                      isSelected
+                        ? "bg-black dark:bg-white text-white dark:text-black font-semibold border-black dark:border-white shadow-sm"
+                        : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600"
+                    }`}
+                  >
+                    <TabIcon className={`w-4 h-4 shrink-0 ${isSelected ? "text-white dark:text-black" : "text-zinc-400"}`} />
+                    <div className="truncate">
+                      <div className="truncate text-xs font-bold leading-tight">{item.merchantLogoText}</div>
+                      <div className={`text-[10px] truncate ${isSelected ? "text-zinc-300 dark:text-zinc-700" : "text-zinc-500"}`}>
+                        {item.basePrice > 0 ? `₹${item.basePrice.toLocaleString()}` : "Free"}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Dynamic Payment State: Completed vs Active Checkout */}
         {isComplete ? (
@@ -972,18 +998,35 @@ function PayContent() {
                       </span>
                     </div>
 
-                    {/* Mobile 1-Touch UPI Intent Trigger */}
-                    <a
-                      href={upiIntentLink}
-                      onClick={(e) => {
-                        // Keep simulation running alongside intent
-                        handleInitiatePayment();
-                      }}
-                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-md cursor-pointer"
+                    {/* Primary Pay Button: Authorize Payment */}
+                    <button
+                      onClick={handleInitiatePayment}
+                      disabled={isProcessing}
+                      className="w-full py-3.5 px-4 rounded-xl bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-lg cursor-pointer"
                     >
-                      <Smartphone className="w-4 h-4" />
-                      <span>Open in GPay / PhonePe (UPI Intent)</span>
-                    </a>
+                      <Lock className="w-4 h-4 text-emerald-500" />
+                      <span>{isProcessing ? "Processing NPCI Settlement..." : `Authorize & Pay ₹${displayPriceNumber.toLocaleString()}`}</span>
+                    </button>
+
+                    {/* Mobile 1-Touch UPI Intent Triggers */}
+                    <div className="w-full grid grid-cols-2 gap-2">
+                      <a
+                        href={upiIntentLink}
+                        onClick={() => handleInitiatePayment()}
+                        className="py-2.5 px-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-black dark:text-white font-medium text-[11px] flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-700"
+                      >
+                        <Smartphone className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Google Pay</span>
+                      </a>
+                      <a
+                        href={upiIntentLink.replace("upi://pay", "phonepe://pay")}
+                        onClick={() => handleInitiatePayment()}
+                        className="py-2.5 px-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-black dark:text-white font-medium text-[11px] flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-700"
+                      >
+                        <Smartphone className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>PhonePe / BHIM</span>
+                      </a>
+                    </div>
 
                     <div className="text-center text-[10px] font-mono text-zinc-400">
                       VPA: <strong className="text-black dark:text-white">ghostbrowse@axisbank</strong> • Merchant: GhostBrowser Engine

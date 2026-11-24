@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   ShieldCheck,
@@ -172,6 +173,7 @@ export function CommandCenter({
   initialQuery = "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner",
   audioEnabled = true,
 }: CommandCenterProps) {
+  const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
   const [isRunning, setIsRunning] = useState(false);
   const [thoughts, setThoughts] = useState<string[]>([
@@ -828,6 +830,14 @@ export function CommandCenter({
     }, 3200);
   };
 
+  const handleApproveAndPay = () => {
+    if (!approvalCard || !approvalCard.best_option) return;
+    setIsApproved(true);
+    speakText("Directing to merchant payment gateway. Only payment authorization required.");
+    const targetUrl = `/pay?domain=${approvalCard.domain}&title=${encodeURIComponent(approvalCard.best_option.title || '')}&price=${encodeURIComponent(approvalCard.best_option.price_formatted || '')}&amount=${approvalCard.best_option.price_number || 0}&merchant=${encodeURIComponent(approvalCard.best_option.merchant_name || '')}&pnr=GB-${approvalCard.domain.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    router.push(targetUrl);
+  };
+
   const handleOpenCheckoutVault = () => {
     if (!approvalCard || !approvalCard.best_option) return;
 
@@ -1151,21 +1161,19 @@ export function CommandCenter({
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
-                            onClick={handleOpenCheckoutVault}
-                            className="w-full py-2.5 rounded-lg bg-white dark:bg-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-200 text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-1.5 shadow-xs font-sans"
+                            onClick={handleApproveAndPay}
+                            className="w-full py-2.5 rounded-lg bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-1.5 shadow-xs font-sans cursor-pointer"
                           >
                             <Lock className="w-3.5 h-3.5" />
-                            <span>Vault ({approvalCard.best_option?.price_formatted || "Locked"})</span>
+                            <span>Go to Payment ({approvalCard.best_option?.price_formatted || "Locked"}) →</span>
                           </button>
-                          <a
-                            href={`/pay?domain=${approvalCard.domain}&title=${encodeURIComponent(approvalCard.best_option?.title || '')}&price=${approvalCard.best_option?.price_number || 0}&merchant=${encodeURIComponent(approvalCard.best_option?.merchant_name || '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
+                          <button
+                            onClick={handleOpenCheckoutVault}
+                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans cursor-pointer"
                           >
-                            <ExternalLink className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>Merchant Pay (/pay)</span>
-                          </a>
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Preview Vault Modal</span>
+                          </button>
                         </div>
                       </div>
                     ) : approvalCard.domain === "research" ? (
@@ -1234,23 +1242,30 @@ export function CommandCenter({
                     ) : (
                       <div className="flex flex-col gap-2">
                         <button
-                          onClick={handleOpenCheckoutVault}
-                          className="w-full py-3.5 rounded-lg bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs md:text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-2 font-sans"
+                          onClick={handleApproveAndPay}
+                          className="w-full py-3.5 rounded-lg bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs md:text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-2 font-sans cursor-pointer"
                         >
                           <Lock className="w-4 h-4" />
-                          <span>{approvalCard.approval_button_text}</span>
+                          <span>{approvalCard.approval_button_text} →</span>
                         </button>
-                        <a
-                          href={`/pay?domain=${approvalCard.domain}&title=${encodeURIComponent(approvalCard.best_option?.title || '')}&price=${approvalCard.best_option?.price_number || 0}&merchant=${encodeURIComponent(approvalCard.best_option?.merchant_name || '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-black dark:hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-800 font-sans"
-                        >
-                          <ExternalLink className="w-3 h-3 text-emerald-500" />
-                          <span>Open Dedicated Merchant Pay Portal (/pay)</span>
-                        </a>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={handleOpenCheckoutVault}
+                            className="w-full py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-800 font-sans cursor-pointer"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Preview Vault Modal</span>
+                          </button>
+                          <button
+                            onClick={handleApproveAndPay}
+                            className="w-full py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-800 font-sans cursor-pointer"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 text-cyan-500" />
+                            <span>Direct Merchant Pay</span>
+                          </button>
+                        </div>
                         <p className="text-[11px] text-zinc-400 text-center font-sans">
-                          Opens authentic 1-Click Checkout Vault with inventory held and zero form filling.
+                          Autonomously pre-filled 47 form fields. Takes you straight to payment gateway.
                         </p>
                       </div>
                     )}
