@@ -913,15 +913,26 @@ export function CheckoutVaultModal({ isOpen, onClose, data }: CheckoutVaultModal
 
               {/* Action Buttons for Step 3: Direct Live Merchant Handoff */}
               <div className="w-full space-y-2 pt-2">
-                {/* Prominent Primary Button: Launch Dedicated Merchant Pay Portal */}
+                {/* Prominent Primary Button 1: Direct Live Merchant Checkout Flow */}
+                <a
+                  href={directActionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-xl font-sans"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Open Verified Live {data.merchantName} Checkout ↗</span>
+                </a>
+
+                {/* Prominent Primary Button 2: Launch Dedicated Merchant Pay Portal */}
                 <a
                   href={payPortalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-3.5 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-xl font-sans"
+                  className="w-full py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs flex items-center justify-center gap-2 transition font-sans"
                 >
-                  <span>Launch Dedicated Merchant Pay Portal (/pay)</span>
-                  <ExternalLink className="w-4 h-4 text-emerald-600" />
+                  <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Open Dedicated GhostBrowser Payment Terminal (/pay)</span>
                 </a>
 
                 {/* Secondary Actions: Download JSON & Done */}

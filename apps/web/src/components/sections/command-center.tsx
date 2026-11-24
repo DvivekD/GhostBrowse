@@ -78,11 +78,35 @@ export function normalizeApprovalPayload(raw: any): UniversalApprovalPayload {
   const title = opt.title || opt.dish_name || opt.airline || opt.job_title || opt.service_name || "Verified Recommendation";
   let subtitle = opt.subtitle || "";
   const merchantName = opt.merchant_name || opt.store || opt.restaurant_name || opt.company_name || opt.site_name || "Verified Merchant";
-  const merchantUrl = opt.merchant_url || opt.order_deep_link || opt.product_url || opt.apply_deep_link || opt.booking_deep_link || opt.source_url || "/pay";
+  
+  let realCheckoutUrl = "/pay";
+  if (domain === "food") {
+    realCheckoutUrl = "https://www.swiggy.com/checkout";
+  } else if (domain === "travel") {
+    realCheckoutUrl = "https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode=BLR&destinationCityCode=COK&paxNum=1";
+  } else if (domain === "shopping") {
+    realCheckoutUrl = "https://www.amazon.in/dp/B0CX23V61J";
+  } else if (domain === "research") {
+    realCheckoutUrl = "https://arxiv.org/abs/2501.12948";
+  } else if (domain === "career") {
+    realCheckoutUrl = "https://boards.greenhouse.io";
+  }
+
+  const merchantUrl = (opt.merchant_url && opt.merchant_url.startsWith("http")) 
+    ? opt.merchant_url 
+    : (opt.source_url && opt.source_url.startsWith("http")) 
+    ? opt.source_url 
+    : realCheckoutUrl;
+    
   const priceNumber = typeof opt.price_number === "number" ? opt.price_number : (typeof opt.price_inr === "number" ? opt.price_inr : 0);
   const priceFormatted = opt.price_formatted || (priceNumber > 0 ? `₹${priceNumber.toLocaleString()}` : (domain === "research" ? "Free (Open Access)" : "Free"));
   const savingsFormatted = opt.savings_formatted || (opt.savings_inr ? `₹${Number(opt.savings_inr).toLocaleString()}` : (raw.savings_inr ? `₹${Number(raw.savings_inr).toLocaleString()}` : undefined));
-  const directBookingUrl = opt.direct_booking_url || `/pay?domain=${domain}&title=${encodeURIComponent(title)}&price=${encodeURIComponent(priceFormatted)}&amount=${priceNumber}&merchant=${encodeURIComponent(merchantName)}`;
+  
+  const directBookingUrl = (opt.direct_booking_url && opt.direct_booking_url.startsWith("http"))
+    ? opt.direct_booking_url
+    : (opt.booking_deep_link && opt.booking_deep_link.startsWith("http"))
+    ? opt.booking_deep_link
+    : realCheckoutUrl;
 
   let specs: { label: string; value: string }[] = [];
   if (Array.isArray(opt.specs)) {
@@ -556,10 +580,10 @@ export function CommandCenter({
           query_summary: "MacBook Air M3 16GB Price Arbitrage",
           best_option: {
             title: "MacBook Air M3 (16GB / 256GB) Space Grey",
-            subtitle: "Flipkart Assured • ₹4,500 Instant HDFC Card Discount Auto-Applied",
-            merchant_name: "Flipkart Assured",
-            merchant_url: "https://www.flipkart.com/apple-macbook-air-m3-16gb-256gb-ssd-macos-space-grey-mrdh3hn-a/p/itm5b0e50f38b488",
-            direct_booking_url: "/pay?domain=shopping&title=Apple%20MacBook%20Air%20M3%2016GB&merchant=Flipkart%20Assured&price=%E2%82%B984%2C990&amount=84990",
+            subtitle: "Amazon India & Flipkart Assured • ₹4,500 Instant HDFC Card Discount Auto-Applied",
+            merchant_name: "Amazon India",
+            merchant_url: "https://www.amazon.in/dp/B0CX23V61J",
+            direct_booking_url: "https://www.amazon.in/dp/B0CX23V61J",
             price_formatted: "₹84,990",
             price_number: 84990,
             savings_formatted: "₹4,500",
@@ -609,9 +633,9 @@ export function CommandCenter({
           best_option: {
             title: "Butter Chicken + 2 Butter Garlic Naan",
             subtitle: "Meghana Foods (4.6 ★) • 25 Mins Guaranteed Delivery",
-            merchant_name: "Swiggy Gourmet",
-            merchant_url: "https://www.swiggy.com/restaurants/meghana-foods-50-feet-main-road-kumaraswamy-layout-bangalore-5039",
-            direct_booking_url: "/pay?domain=food&title=Butter%20Chicken%20%2B%202%20Butter%20Garlic%20Naan&merchant=Swiggy%20Gourmet&price=%E2%82%B9380&amount=380",
+            merchant_name: "Swiggy Gourmet - Meghana Foods",
+            merchant_url: "https://www.swiggy.com/city/bangalore/meghana-foods-5th-block-koramangala-rest10575",
+            direct_booking_url: "https://www.swiggy.com/checkout",
             price_formatted: "₹380",
             price_number: 380,
             savings_formatted: "₹65",
@@ -775,9 +799,9 @@ export function CommandCenter({
           best_option: {
             title: `${airlineName} (${originCode} → ${destCode})`,
             subtitle: "Non-stop • Departure 06:15 AM • 1h 15m duration",
-            merchant_name: "IndiGo Airline Portal",
-            merchant_url: `https://www.makemytrip.com/flight/search?itinerary=${originCode}-${destCode}-${new Date(Date.now() + 86400000).toISOString().slice(0,10)}&tripType=O&paxType=A-1_C-0_I-0&intl=false&cabinClass=E`,
-            direct_booking_url: `/pay?domain=travel&title=${encodeURIComponent(airlineName + " (" + originCode + " → " + destCode + ")")}&merchant=IndiGo%20Airlines&price=${encodeURIComponent("₹" + priceNum.toLocaleString())}&amount=${priceNum}`,
+            merchant_name: "IndiGo Airlines",
+            merchant_url: `https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode=${originCode}&destinationCityCode=${destCode}&paxNum=1`,
+            direct_booking_url: `https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode=${originCode}&destinationCityCode=${destCode}&paxNum=1`,
             price_formatted: `₹${priceNum.toLocaleString()}`,
             price_number: priceNum,
             savings_formatted: "₹650",
@@ -1240,15 +1264,28 @@ export function CommandCenter({
                         </p>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-2.5">
+                        {/* Primary Action 1: Proceed Directly to Real Live Merchant Checkout */}
+                        <a
+                          href={approvalCard.best_option?.direct_booking_url || approvalCard.best_option?.merchant_url || "/pay"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs md:text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-lg flex items-center justify-center gap-2 font-sans cursor-pointer"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          <span>Launch Live {approvalCard.best_option?.merchant_name || 'Merchant'} Checkout Page ↗</span>
+                        </a>
+
+                        {/* Primary Action 2: 1-Click Pay via GhostBrowser Vault */}
                         <button
                           onClick={handleApproveAndPay}
-                          className="w-full py-3.5 rounded-lg bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs md:text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-2 font-sans cursor-pointer"
+                          className="w-full py-3 rounded-xl bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs md:text-sm tracking-wide transition flex items-center justify-center gap-2 font-sans cursor-pointer shadow-sm"
                         >
-                          <Lock className="w-4 h-4" />
-                          <span>{approvalCard.approval_button_text} →</span>
+                          <Lock className="w-4 h-4 text-emerald-500" />
+                          <span>{approvalCard.approval_button_text} (Pay via Vault) →</span>
                         </button>
-                        <div className="grid grid-cols-2 gap-2">
+
+                        <div className="grid grid-cols-2 gap-2 pt-0.5">
                           <button
                             onClick={handleOpenCheckoutVault}
                             className="w-full py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-800 font-sans cursor-pointer"
@@ -1256,13 +1293,15 @@ export function CommandCenter({
                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                             <span>Preview Vault Modal</span>
                           </button>
-                          <button
-                            onClick={handleApproveAndPay}
+                          <a
+                            href={approvalCard.best_option?.merchant_url || approvalCard.best_option?.direct_booking_url || "/pay"}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="w-full py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-800 font-sans cursor-pointer"
                           >
                             <ExternalLink className="w-3.5 h-3.5 text-cyan-500" />
-                            <span>Direct Merchant Pay</span>
-                          </button>
+                            <span>Direct Portal</span>
+                          </a>
                         </div>
                         <p className="text-[11px] text-zinc-400 text-center font-sans">
                           Autonomously pre-filled 47 form fields. Takes you straight to payment gateway.

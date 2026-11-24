@@ -39,20 +39,20 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
       const asp = w / h;
       if (asp < 0.75) {
         // Narrow mobile portrait (e.g. iPhone)
-        worldGroup.scale.set(0.52, 0.52, 0.52);
-        camera.position.set(0, 0, 5.0);
+        worldGroup.scale.set(0.68, 0.68, 0.68);
+        camera.position.set(0, 0, 4.3);
       } else if (asp < 1.0) {
         // Mobile portrait / tablet narrow
-        worldGroup.scale.set(0.60, 0.60, 0.60);
-        camera.position.set(0, 0, 4.9);
+        worldGroup.scale.set(0.72, 0.72, 0.72);
+        camera.position.set(0, 0, 4.4);
       } else if (asp < 1.3) {
         // Square or small desktop
-        worldGroup.scale.set(0.78, 0.78, 0.78);
-        camera.position.set(0, 0, 5.2);
+        worldGroup.scale.set(0.85, 0.85, 0.85);
+        camera.position.set(0, 0, 4.8);
       } else {
         // Desktop widescreen
         worldGroup.scale.set(0.96, 0.96, 0.96);
-        camera.position.set(0, 0, 5.2);
+        camera.position.set(0, 0, 5.0);
       }
       camera.aspect = asp;
       camera.updateProjectionMatrix();
