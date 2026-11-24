@@ -423,11 +423,20 @@ export function CommandCenter({
     setThoughts(prev => [...prev, "Connected to GhostBrowser client reasoning engine..."]);
     const lowerQ = q.toLowerCase();
 
-    const isFlight = lowerQ.includes("flight") || lowerQ.includes("airline") || lowerQ.includes("indigo") || lowerQ.includes("air india") || lowerQ.includes("ticket") || lowerQ.includes("airport") || lowerQ.includes("fly") || lowerQ.includes("travel") || (lowerQ.includes("bangalore") && lowerQ.includes("kochi")) || (lowerQ.includes("delhi") && lowerQ.includes("mumbai"));
-    const isShopping = !isFlight && (lowerQ.includes("macbook") || lowerQ.includes("amazon") || lowerQ.includes("flipkart") || lowerQ.includes("laptop") || lowerQ.includes("price") || lowerQ.includes("buy") || lowerQ.includes("deal") || lowerQ.includes("shopping"));
-    const isFood = !isFlight && (lowerQ.includes("food") || lowerQ.includes("swiggy") || lowerQ.includes("zomato") || lowerQ.includes("chicken") || lowerQ.includes("naan") || lowerQ.includes("biryani") || lowerQ.includes("pizza") || lowerQ.includes("restaurant") || lowerQ.includes("mutton") || (lowerQ.includes("order") && !lowerQ.includes("flight")));
-    const isResearch = !isFlight && (lowerQ.includes("research") || lowerQ.includes("paper") || lowerQ.includes("papers") || lowerQ.includes("arxiv") || lowerQ.includes("deepseek") || lowerQ.includes("study") || lowerQ.includes("benchmark") || lowerQ.includes("reasoning") || lowerQ.includes("scholar"));
-    const isCareer = !isFlight && (lowerQ.includes("job") || lowerQ.includes("jobs") || lowerQ.includes("career") || lowerQ.includes("engineer") || lowerQ.includes("greenhouse") || lowerQ.includes("lever") || lowerQ.includes("resume") || lowerQ.includes("apply") || lowerQ.includes("hiring"));
+    // Priority 1: Food & Dining
+    const isFood = (lowerQ.includes("food") || lowerQ.includes("swiggy") || lowerQ.includes("zomato") || lowerQ.includes("chicken") || lowerQ.includes("naan") || lowerQ.includes("biryani") || lowerQ.includes("pizza") || lowerQ.includes("restaurant") || lowerQ.includes("mutton") || lowerQ.includes("burger") || lowerQ.includes("paneer") || (lowerQ.includes("order") && !lowerQ.includes("flight")));
+
+    // Priority 2: AI Research & Preprints
+    const isResearch = !isFood && (lowerQ.includes("research") || lowerQ.includes("paper") || lowerQ.includes("papers") || lowerQ.includes("arxiv") || lowerQ.includes("deepseek") || lowerQ.includes("study") || lowerQ.includes("benchmark") || lowerQ.includes("reasoning") || lowerQ.includes("scholar"));
+
+    // Priority 3: Career & Job Applications
+    const isCareer = !isFood && !isResearch && (lowerQ.includes("job") || lowerQ.includes("jobs") || lowerQ.includes("career") || lowerQ.includes("engineer") || lowerQ.includes("greenhouse") || lowerQ.includes("lever") || lowerQ.includes("resume") || lowerQ.includes("apply") || lowerQ.includes("hiring") || lowerQ.includes("fullstack") || lowerQ.includes("developer"));
+
+    // Priority 4: E-Commerce & Deals
+    const isShopping = !isFood && !isResearch && !isCareer && (lowerQ.includes("macbook") || lowerQ.includes("amazon") || lowerQ.includes("flipkart") || lowerQ.includes("laptop") || lowerQ.includes("price") || lowerQ.includes("buy") || lowerQ.includes("deal") || lowerQ.includes("shopping") || lowerQ.includes("croma") || lowerQ.includes("iphone"));
+
+    // Priority 5: Travel & Flights (Fallback)
+    const isFlight = !isFood && !isResearch && !isCareer && !isShopping;
 
     setTimeout(() => {
       if (isShopping) {
@@ -961,6 +970,16 @@ export function CommandCenter({
                 className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
               >
                 📄 Research: DeepSeek-R1 arXiv
+              </button>
+              <button
+                onClick={() => {
+                  const q = "Apply to Staff AI Engineer on Greenhouse & Lever with resume";
+                  setQuery(q);
+                  handleExecute(q);
+                }}
+                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
+              >
+                💼 Career: Staff AI Engineer (Greenhouse)
               </button>
             </div>
           </div>

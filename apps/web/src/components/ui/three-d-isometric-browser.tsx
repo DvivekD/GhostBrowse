@@ -10,7 +10,12 @@ interface ThreeDIsometricBrowserProps {
 export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowserProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeLayer, setActiveLayer] = useState<'all' | 'chrome' | 'dom' | 'cdp'>('all');
+  const activeLayerRef = useRef<'all' | 'chrome' | 'dom' | 'cdp'>('all');
   const [fps, setFps] = useState<number>(120);
+
+  useEffect(() => {
+    activeLayerRef.current = activeLayer;
+  }, [activeLayer]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -23,18 +28,27 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
 
     // Scene & Camera
     const scene = new THREE.Scene();
-
     const camera = new THREE.PerspectiveCamera(45, initialAspect, 0.1, 100);
 
-    // Responsive Distance Calculation:
-    // Ensures the 3.6m x 2.25m isometric browser fits dead-center on portrait mobile and wide desktop
-    const calcFitDistance = (w: number, h: number) => {
+    // Root Group for 3D Isometric Orientation & Mouse/Touch Parallax
+    const worldGroup = new THREE.Group();
+    scene.add(worldGroup);
+
+    // Responsive Distance and Scale calculation
+    const updateScalingAndDistance = (w: number, h: number) => {
       const asp = w / h;
-      const baseDist = 5.6;
-      return asp < 1.0 ? baseDist / (asp * 0.85) : baseDist;
+      if (asp < 1.0) {
+        worldGroup.scale.set(0.68, 0.68, 0.68);
+        camera.position.set(0, 0, 5.0);
+      } else {
+        worldGroup.scale.set(1.0, 1.0, 1.0);
+        camera.position.set(0, 0, 5.4);
+      }
+      camera.aspect = asp;
+      camera.updateProjectionMatrix();
     };
 
-    camera.position.set(0, 0, calcFitDistance(width, height));
+    updateScalingAndDistance(width, height);
     camera.lookAt(0, 0, 0);
 
     // High Performance WebGL Renderer
@@ -48,10 +62,6 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
     container.appendChild(renderer.domElement);
-
-    // Root Group for 3D Isometric Orientation & Mouse/Touch Parallax
-    const worldGroup = new THREE.Group();
-    scene.add(worldGroup);
 
     // Base Isometric Euler Angles
     const baseRotX = 0.38;
@@ -296,6 +306,15 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
     cdpMesh.renderOrder = 1;
     worldGroup.add(cdpMesh);
 
+    // Glowing wireframe edge outline for CDP layer
+    const edgeGeo = new THREE.EdgesGeometry(planeGeo);
+    const cdpEdgeMat = new THREE.LineBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.6,
+    });
+    cdpMesh.add(new THREE.LineSegments(edgeGeo, cdpEdgeMat));
+
     // 2. DOM Tree Plane (Middle Layer)
     const domTex = createLayerTexture('dom');
     const domMat = new THREE.MeshBasicMaterial({
@@ -310,6 +329,13 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
     domMesh.renderOrder = 2;
     worldGroup.add(domMesh);
 
+    const domEdgeMat = new THREE.LineBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.6,
+    });
+    domMesh.add(new THREE.LineSegments(edgeGeo, domEdgeMat));
+
     // 3. Chrome Shell Plane (Top Layer)
     const chromeTex = createLayerTexture('chrome');
     const chromeMat = new THREE.MeshBasicMaterial({
@@ -323,6 +349,13 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
     chromeMesh.position.z = 0.85;
     chromeMesh.renderOrder = 3;
     worldGroup.add(chromeMesh);
+
+    const chromeEdgeMat = new THREE.LineBasicMaterial({
+      color: 0x10b981,
+      transparent: true,
+      opacity: 0.7,
+    });
+    chromeMesh.add(new THREE.LineSegments(edgeGeo, chromeEdgeMat));
 
     // 4 Corner Connecting Laser Struts
     const halfW = 3.6 / 2;
@@ -457,14 +490,7 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
       if (!container) return;
       const w = container.clientWidth || 800;
       const h = container.clientHeight || 520;
-      const aspect = w / h;
-      camera.aspect = aspect;
-
-      const fitDist = calcFitDistance(w, h);
-      camera.position.set(0, 0, fitDist);
-      camera.lookAt(0, 0, 0);
-      camera.updateProjectionMatrix();
-
+      updateScalingAndDistance(w, h);
       renderer.setSize(w, h);
     };
 
@@ -497,18 +523,19 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
       // Subtle organic breathing float
       worldGroup.position.y = Math.sin(elapsed * 1.2) * 0.05;
 
-      // Dynamic Layer Distance based on activeLayer state
-      const targetCdpZ = activeLayer === 'all' ? -0.85 : activeLayer === 'cdp' ? 0.0 : -1.8;
+      // Dynamic Layer Distance based on activeLayerRef
+      const currentLayer = activeLayerRef.current;
+      const targetCdpZ = currentLayer === 'all' ? -0.85 : currentLayer === 'cdp' ? 0.0 : -2.0;
       const targetDomZ = 0.0;
-      const targetChromeZ = activeLayer === 'all' ? 0.85 : activeLayer === 'chrome' ? 0.0 : 1.8;
+      const targetChromeZ = currentLayer === 'all' ? 0.85 : currentLayer === 'chrome' ? 0.0 : 2.0;
 
       cdpMesh.position.z += (targetCdpZ - cdpMesh.position.z) * 0.08;
       domMesh.position.z += (targetDomZ - domMesh.position.z) * 0.08;
       chromeMesh.position.z += (targetChromeZ - chromeMesh.position.z) * 0.08;
 
-      cdpMesh.visible = activeLayer === 'all' || activeLayer === 'cdp';
-      domMesh.visible = activeLayer === 'all' || activeLayer === 'dom';
-      chromeMesh.visible = activeLayer === 'all' || activeLayer === 'chrome';
+      cdpMesh.visible = currentLayer === 'all' || currentLayer === 'cdp';
+      domMesh.visible = currentLayer === 'all' || currentLayer === 'dom';
+      chromeMesh.visible = currentLayer === 'all' || currentLayer === 'chrome';
 
       // Animate Particles with Swirl & Mouse/Touch Repulsion
       const pos = particleGeo.attributes.position.array as Float32Array;
@@ -570,7 +597,7 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
         container.removeChild(renderer.domElement);
       }
     };
-  }, [activeLayer]);
+  }, []);
 
   return (
     <div className={`relative w-full rounded-2xl border border-zinc-800/80 bg-zinc-950/70 p-3 sm:p-5 backdrop-blur-xl shadow-2xl overflow-hidden ${className}`}>

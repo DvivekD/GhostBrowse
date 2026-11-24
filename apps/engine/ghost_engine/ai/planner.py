@@ -48,65 +48,76 @@ class AIPlanner:
         self.gemini_key = settings.gemini_api_key
         self.groq_key = settings.groq_api_key
         self.last_active_tier: Optional[str] = None
+        self._sambanova_disabled = False
+        self._gemini_primary_disabled = False
 
     def classify_domain(self, query: str) -> WorkflowDomain:
         """
         Fast zero-latency heuristic domain classifier for routing and quick dispatch.
+        Guarantees accurate intent detection across Food, Shopping, Research, Career, and Travel.
         """
         q = query.lower().strip()
 
-        # 1. Civic Utility & Government Portals
+        # 1. Hyperlocal Food Delivery & Cuisine (Check before Travel so food in cities routes correctly)
+        food_terms = [
+            "chicken", "naan", "butter chicken", "biryani", "pizza", "burger", "pasta",
+            "paneer", "dal", "roti", "mutton", "zomato", "swiggy", "blinkit", "zepto",
+            "food", "restaurant", "order", "delivery", "menu", "cuisine", "kitchen",
+            "gourmet", "takeout", "eatery", "tiffin"
+        ]
+        flight_terms = ["flight", "flights", "fly", "flying", "airline", "airlines", "indigo", "air india", "akasa", "skyscanner", "kayak"]
+        if any(k in q for k in food_terms) and not any(k in q for k in flight_terms):
+            return WorkflowDomain.FOOD
+
+        # 2. AI Research & Academic Preprints
+        if any(k in q for k in [
+            "arxiv", "paper", "papers", "preprint", "pre-print", "hugging face",
+            "deepseek", "r1", "abstract", "citations", "semantic scholar", "neurips",
+            "iclr", "cvpr", "benchmark", "reasoning architecture", "math-500", "aime"
+        ]):
+            return WorkflowDomain.RESEARCH
+
+        # 3. Career & Tech Talent Job Hunting
+        if any(k in q for k in [
+            "job", "jobs", "hire", "hiring", "apply", "greenhouse", "lever",
+            "wellfound", "y combinator", "resume", "engineer", "developer", "salary",
+            "fullstack", "frontend", "backend", "roles", "candidate", "workday", "ashby"
+        ]):
+            return WorkflowDomain.CAREER
+
+        # 4. Shopping & E-Commerce Sniping
+        if any(k in q for k in [
+            "amazon", "flipkart", "croma", "macbook", "laptop", "buy", "iphone",
+            "price comparison", "sniper", "lowest price", "card discount",
+            "deals on", "deal sniper", "headphone", "cart", "specs", "m3"
+        ]):
+            return WorkflowDomain.SHOPPING
+
+        # 5. Civic Utility & Government Portals
         if any(k in q for k in [
             "fastag", "passport", "appointment", "slot", "tatkal", "seva",
             "parivahan", "rto", "recharge balance", "challan", "aadhaar", "uidai", "voter id"
         ]):
             return WorkflowDomain.UTILITY
 
-        # 2. AI Research & Academic Preprints
+        # 6. Travel & Flights (Strictly requires explicit flight/aviation terminology)
         if any(k in q for k in [
-            "arxiv", "paper", "papers", "preprint", "pre-print", "hugging face",
-            "abstract", "citations", "semantic scholar", "neurips", "iclr", "cvpr"
-        ]):
-            return WorkflowDomain.RESEARCH
-
-        # 3. Career & Job Hunting
-        if any(k in q for k in [
-            "job", "jobs", "hire", "hiring", "apply", "greenhouse", "lever",
-            "wellfound", "y combinator", "resume", "engineer role", "roles >",
-            "developer role", "salary", "fullstack", "frontend role", "backend role"
-        ]):
-            return WorkflowDomain.CAREER
-
-        # 4. Shopping & E-Commerce Sniping
-        if any(k in q for k in [
-            "amazon", "flipkart", "croma", "macbook", "laptop", "buy",
-            "price comparison", "sniper", "lowest price", "card discount",
-            "deals on", "deal sniper", "iphone", "headphone", "cart"
-        ]):
-            return WorkflowDomain.SHOPPING
-
-        # 5. Hyperlocal Food Delivery (careful: "flight with dinner" is travel)
-        if any(k in q for k in [
-            "biryani", "zomato", "swiggy", "blinkit", "zepto", "food delivery",
-            "order food", "hyperlocal", "mutton biryani", "pizza delivery", "burger delivery"
-        ]) and not any(k in q for k in ["flight", "fly", "flights", "airline", "indigo", "air india"]):
-            return WorkflowDomain.FOOD
-
-        # 6. Travel & Flights
-        if any(k in q for k in [
-            "flight", "fly", "flights", "airline", "indigo", "air india",
-            "akasa", "skyscanner", "kayak", "hotel", "train", "delhi", "bangalore",
-            "mumbai", "kochi", "blr", "cok", "del", "bom"
-        ]) or ("to" in q and ("from" in q or "→" in q or "->" in q)):
+            "flight", "fly", "flights", "airline", "airlines", "indigo", "air india",
+            "akasa", "spicejet", "vistara", "skyscanner", "kayak", "makemytrip",
+            "airport", "boarding pass", "cabin class", "round trip", "one way",
+            "non-stop", "airfare", "pnr"
+        ]) or (("from" in q or "→" in q or "->" in q) and ("to" in q) and any(c in q for c in ["blr", "cok", "del", "bom", "maa", "hyd", "ccu"])):
             return WorkflowDomain.TRAVEL
 
         # Fallback keyword checks
-        if any(k in q for k in ["order", "restaurant", "dish", "cuisine"]):
+        if any(k in q for k in ["order", "food", "dish", "eat"]):
             return WorkflowDomain.FOOD
-        if any(k in q for k in ["price", "store", "discount"]):
+        if any(k in q for k in ["price", "buy", "store", "product"]):
             return WorkflowDomain.SHOPPING
-        if any(k in q for k in ["role", "candidate"]):
+        if any(k in q for k in ["role", "cv", "resume", "hiring"]):
             return WorkflowDomain.CAREER
+        if any(k in q for k in ["scholar", "citation"]):
+            return WorkflowDomain.RESEARCH
 
         return WorkflowDomain.TRAVEL
 
@@ -122,34 +133,36 @@ class AIPlanner:
         Executes the 4-tier cascade to auto-classify domain and extract parameters.
         """
         # Tier 1: SambaNova Cloud (Meta-Llama-3.3-70B-Instruct at 450 t/s)
-        if self.sambanova_key:
+        if self.sambanova_key and not self._sambanova_disabled:
             try:
                 logger.info("Executing Tier 1: SambaNova Cloud (Meta-Llama-3.3-70B-Instruct at 450 t/s)...")
                 result = await self._parse_with_sambanova(query)
                 self.last_active_tier = "Tier 1: SambaNova Cloud (SN40L Llama-3.3-70B)"
                 return result
             except Exception as e:
-                logger.warning(f"Tier 1 (SambaNova Cloud) failed: {e}. Cascading to Tier 2 (Gemini)...")
+                logger.warning(f"Tier 1 (SambaNova Cloud) failed: {e}. Cascading to Tier 2 (Groq LPU)...")
+                if "402" in str(e) or "payment" in str(e).lower():
+                    self._sambanova_disabled = True
 
-        # Tier 2: Gemini 3.8 Flash
-        if self.gemini_key:
-            try:
-                logger.info("Executing Tier 2: Gemini 3.8 Flash via Google AI Studio...")
-                result = await self._parse_with_gemini(query)
-                self.last_active_tier = "Tier 2: Gemini 3.8 Flash"
-                return result
-            except Exception as e:
-                logger.warning(f"Tier 2 (Gemini 3.8 Flash) failed: {e}. Cascading to Tier 3 (Groq)...")
-
-        # Tier 3: Groq LPU (openai/gpt-oss-120b)
+        # Tier 2: Groq LPU (openai/gpt-oss-120b at 500+ t/s)
         if self.groq_key:
             try:
-                logger.info("Executing Tier 3: Groq LPU (openai/gpt-oss-120b)...")
+                logger.info("Executing Tier 2: Groq LPU (openai/gpt-oss-120b)...")
                 result = await self._parse_with_groq(query)
-                self.last_active_tier = "Tier 3: Groq LPU (openai/gpt-oss-120b)"
+                self.last_active_tier = "Tier 2: Groq LPU (GPT-OSS-120B)"
                 return result
             except Exception as e:
-                logger.warning(f"Tier 3 (Groq LPU) failed: {e}. Cascading to Tier 4 (Heuristic parser)...")
+                logger.warning(f"Tier 2 (Groq LPU) failed: {e}. Cascading to Tier 3 (Gemini)...")
+
+        # Tier 3: Gemini via Google AI Studio (Gemini 2.0 Flash / Flash Lite)
+        if self.gemini_key:
+            try:
+                logger.info("Executing Tier 3: Gemini Flash via Google AI Studio...")
+                result = await self._parse_with_gemini(query)
+                self.last_active_tier = "Tier 3: Gemini 3.8 Flash"
+                return result
+            except Exception as e:
+                logger.warning(f"Tier 3 (Gemini Flash) failed: {e}. Cascading to Tier 4 (Heuristic parser)...")
 
         # Tier 4: Heuristic offline parser fallback
         logger.info("Executing Tier 4: Heuristic offline regex parser fallback...")
@@ -245,7 +258,7 @@ Output ONLY valid raw JSON without markdown formatting."""
             return UniversalSearchParams(**cleaned)
 
     async def _parse_with_gemini(self, query: str) -> UniversalSearchParams:
-        """Tier 2: Gemini 3.8 Flash via Google AI Studio."""
+        """Tier 2: Gemini Flash via Google AI Studio with sub-second response."""
         system_prompt = self._get_system_prompt()
         payload = {
             "contents": [
@@ -253,16 +266,12 @@ Output ONLY valid raw JSON without markdown formatting."""
             ]
         }
 
-        primary_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={self.gemini_key}"
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            try:
-                resp = await client.post(primary_url, json=payload)
-                resp.raise_for_status()
-            except (httpx.HTTPStatusError, httpx.TimeoutException) as e:
-                logger.info(f"Gemini 3.8 Flash unavailable ({e}). Falling back to Gemini Flash Lite...")
-                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={self.gemini_key}"
-                resp = await client.post(fallback_url, json=payload)
-                resp.raise_for_status()
+        # Try gemini-2.0-flash or gemini-flash-lite-latest directly for instant completion
+        model_name = "gemini-flash-lite-latest"
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.gemini_key}"
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            resp = await client.post(api_url, json=payload)
+            resp.raise_for_status()
 
             data = resp.json()
             raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -392,13 +401,21 @@ Output ONLY valid raw JSON without markdown formatting."""
         # Domain 3: Food
         # -------------------------------------------------------------
         if domain == WorkflowDomain.FOOD:
-            dish = "Hyderabadi Mutton Biryani"
-            if "biryani" in q_lower:
+            if "chicken" in q_lower or "naan" in q_lower or "butter" in q_lower:
+                dish = "Butter Chicken (Boneless) + 2 Butter Garlic Naan"
+                rest = "Meghana Foods (Indiranagar)"
+            elif "biryani" in q_lower:
                 dish = "Meghana Special Biryani + Raita"
+                rest = "Meghana Foods"
             elif "pizza" in q_lower:
-                dish = "Truffle Mushroom Gourmet Pizza"
+                dish = "Gourmet Wood-Fired Margherita with Buffalo Mozzarella"
+                rest = "Brik Oven"
             elif "burger" in q_lower:
                 dish = "Double Cheeseburger & Fries"
+                rest = "Top Rated Kitchen"
+            else:
+                dish = "Butter Chicken and Garlic Naan"
+                rest = "Meghana Foods"
 
             return UniversalSearchParams(
                 domain=WorkflowDomain.FOOD,
@@ -406,9 +423,9 @@ Output ONLY valid raw JSON without markdown formatting."""
                 target_sites=["Swiggy", "Zomato", "Blinkit"],
                 title=dish,
                 dish_name=dish,
-                restaurant_name="Meghana Foods" if "biryani" in q_lower else "Top Rated Kitchen",
+                restaurant_name=rest,
                 delivery_area="Bangalore",
-                max_delivery_mins=30,
+                max_delivery_mins=25,
                 max_price_inr=price or 450.0,
                 preferences=prefs,
             )

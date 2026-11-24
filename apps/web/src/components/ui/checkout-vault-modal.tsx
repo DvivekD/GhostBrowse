@@ -876,15 +876,15 @@ export function CheckoutVaultModal({ isOpen, onClose, data }: CheckoutVaultModal
 
               {/* Action Buttons for Step 3: Direct Live Merchant Handoff */}
               <div className="w-full space-y-2 pt-2">
-                {/* Prominent Primary Button: Launch Live Merchant Session */}
+                {/* Prominent Primary Button: Launch Dedicated Merchant Pay Portal */}
                 <a
                   href={payPortalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-3.5 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-xl font-sans"
                 >
-                  <span>Launch Live Merchant Checkout Session</span>
-                  <ExternalLink className="w-4 h-4" />
+                  <span>Launch Dedicated Merchant Pay Portal (/pay)</span>
+                  <ExternalLink className="w-4 h-4 text-emerald-600" />
                 </a>
 
                 {/* Secondary Button: Raw merchant store page */}
