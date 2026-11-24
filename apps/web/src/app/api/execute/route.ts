@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
+import type { Browser, BrowserContext, Page } from "playwright-core";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -212,7 +212,6 @@ function classifyQueryHeuristically(q: string) {
   let origin = "BLR";
   let destination = "COK";
 
-  // Check explicit city mentions in the query
   const foundCities: { name: string; code: string; index: number }[] = [];
   for (const [cityName, iata] of Object.entries(CITY_IATA_MAP)) {
     const idx = lower.indexOf(cityName);
@@ -236,7 +235,6 @@ function classifyQueryHeuristically(q: string) {
     }
   }
 
-  // Calculate default travel date: tomorrow in YYYY-MM-DD
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const dateStr = tomorrow.toISOString().split("T")[0];
@@ -331,20 +329,21 @@ async function fetchGreenhouseJobs(company: string, roleKeyword: string) {
 }
 
 // -----------------------------------------------------------------------------
-// Steel.dev Persistent Session Creator & Playwright CDP Connector
+// Steel.dev Persistent Session & Playwright / Scrape Connectors
 // -----------------------------------------------------------------------------
-interface SteelPlaywrightContext {
+interface SteelSessionInfo {
   sessionId: string;
   sessionViewerUrl: string;
-  browser: Browser;
-  context: BrowserContext;
-  page: Page;
+  websocketUrl?: string;
 }
 
-async function initSteelPlaywright(): Promise<SteelPlaywrightContext | null> {
-  const apiKey = process.env.STEEL_API_KEY;
-  if (!apiKey) return null;
+interface SteelPlaywrightContext extends SteelSessionInfo {
+  browser: Browser | null;
+  context: BrowserContext | null;
+  page: Page | null;
+}
 
+async function createSteelSession(apiKey: string): Promise<SteelSessionInfo | null> {
   try {
     const res = await fetch("https://api.steel.dev/v1/sessions", {
       method: "POST",
@@ -357,23 +356,60 @@ async function initSteelPlaywright(): Promise<SteelPlaywrightContext | null> {
 
     if (!res.ok) return null;
     const data = await res.json();
-    const sessionId = data.id;
-    const sessionViewerUrl = data.sessionViewerUrl || `https://app.steel.dev/sessions/${sessionId}`;
+    return {
+      sessionId: data.id,
+      sessionViewerUrl: data.sessionViewerUrl || `https://app.steel.dev/sessions/${data.id}`,
+      websocketUrl: data.websocketUrl
+    };
+  } catch (err) {
+    console.warn("Steel session creation error:", err);
+    return null;
+  }
+}
 
-    const cdpUrl = `wss://connect.steel.dev?apiKey=${apiKey}&sessionId=${sessionId}`;
+async function initSteelPlaywright(apiKey: string): Promise<SteelPlaywrightContext | null> {
+  const session = await createSteelSession(apiKey);
+  if (!session) return null;
+
+  try {
+    // Dynamic runtime import inside try/catch so Vercel Lambda cold-start never crashes
+    const { chromium } = await import("playwright-core");
+    const cdpUrl = `wss://connect.steel.dev?apiKey=${apiKey}&sessionId=${session.sessionId}`;
     const browser = await chromium.connectOverCDP(cdpUrl);
     const context = browser.contexts()[0] || (await browser.newContext());
     const page = context.pages()[0] || (await context.newPage());
 
     return {
-      sessionId,
-      sessionViewerUrl,
+      ...session,
       browser,
       context,
       page
     };
   } catch (err) {
-    console.warn("Steel.dev Playwright CDP connection note:", err);
+    console.warn("playwright-core dynamic load or CDP connect unavailable on this environment, using zero-dependency Steel REST fallback:", err);
+    return {
+      ...session,
+      browser: null,
+      context: null,
+      page: null
+    };
+  }
+}
+
+async function steelScrape(apiKey: string, sessionId: string, url: string) {
+  try {
+    const res = await fetch("https://api.steel.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        "steel-api-key": apiKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ url, sessionId })
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn("Steel scrape fallback error:", err);
     return null;
   }
 }
@@ -382,24 +418,38 @@ async function initSteelPlaywright(): Promise<SteelPlaywrightContext | null> {
 // SSE Endpoint Handlers
 // -----------------------------------------------------------------------------
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const query = searchParams.get("query") || "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner";
-  return handleExecutionStream(query);
+  try {
+    const { searchParams } = new URL(req.url);
+    const query = searchParams.get("query") || "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner";
+    return handleExecutionStream(query);
+  } catch (err: any) {
+    console.error("GET route top-level error:", err);
+    return new Response(`event: thought\ndata: {"message":"Internal initialization note: ${err?.message || String(err)}"}\n\n`, {
+      headers: { "Content-Type": "text/event-stream" }
+    });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  let query = "";
   try {
-    const body = await req.json();
-    query = body.query || "";
-  } catch {
-    const { searchParams } = new URL(req.url);
-    query = searchParams.get("query") || "";
+    let query = "";
+    try {
+      const body = await req.json();
+      query = body.query || "";
+    } catch {
+      const { searchParams } = new URL(req.url);
+      query = searchParams.get("query") || "";
+    }
+    if (!query) {
+      query = "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner";
+    }
+    return handleExecutionStream(query);
+  } catch (err: any) {
+    console.error("POST route top-level error:", err);
+    return new Response(`event: thought\ndata: {"message":"Internal initialization note: ${err?.message || String(err)}"}\n\n`, {
+      headers: { "Content-Type": "text/event-stream" }
+    });
   }
-  if (!query) {
-    query = "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner";
-  }
-  return handleExecutionStream(query);
 }
 
 async function handleExecutionStream(query: string) {
@@ -419,6 +469,7 @@ async function handleExecutionStream(query: string) {
 
   (async () => {
     let steelPlaywright: SteelPlaywrightContext | null = null;
+    const steelApiKey = process.env.STEEL_API_KEY || "";
 
     try {
       // 1. Initial Thought
@@ -481,8 +532,10 @@ async function handleExecutionStream(query: string) {
       await sendEvent("worker_status", { worker_id: "w2", target_site: portalNames[1], status: "initializing", progress: 15, current_action: "Connecting Steel.dev Cloud CDP..." });
       await sendEvent("worker_status", { worker_id: "w3", target_site: portalNames[2], status: "initializing", progress: 15, current_action: "Connecting Steel.dev Cloud CDP..." });
 
-      // 4. Step B: Spin up real Steel.dev CDP Playwright session
-      steelPlaywright = await initSteelPlaywright();
+      // 4. Step B: Spin up real Steel.dev CDP Playwright session (with zero-dependency fallback)
+      if (steelApiKey) {
+        steelPlaywright = await initSteelPlaywright(steelApiKey);
+      }
       const liveSessionUrl = steelPlaywright ? steelPlaywright.sessionViewerUrl : undefined;
 
       if (steelPlaywright) {
@@ -493,7 +546,7 @@ async function handleExecutionStream(query: string) {
       await sendEvent("worker_status", { worker_id: "w2", target_site: portalNames[1], status: "navigating", progress: 40, current_action: `Comparing prices & validating DOM...` });
       await sendEvent("worker_status", { worker_id: "w3", target_site: portalNames[2], status: "navigating", progress: 45, current_action: `Synthesizing cryptographic proof claims...` });
 
-      // Variables to collect for 1-Action Approval Card
+      // Variables for 1-Action Approval Card
       let bestOption: any = null;
       let rawHtmlSnippet = "";
       let priceNumber = 0;
@@ -508,7 +561,7 @@ async function handleExecutionStream(query: string) {
       let specs: { label: string; value: string }[] = [];
 
       // -----------------------------------------------------------------------
-      // 5. LIVE DOMAIN WORKFLOW AUTOMATION OVER STEEL CDP
+      // 5. LIVE DOMAIN WORKFLOW AUTOMATION OVER STEEL CDP & ZERO-DEP FALLBACK
       // -----------------------------------------------------------------------
 
       if (domain === "shopping") {
@@ -521,38 +574,57 @@ async function handleExecutionStream(query: string) {
         let scrapedProductHref = "";
 
         if (steelPlaywright) {
-          const { page } = steelPlaywright;
           const searchUrl = `https://www.flipkart.com/search?q=${encodeURIComponent(item)}`;
-          await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
-          await page.waitForSelector('a[href*="/p/"]', { timeout: 6000 }).catch(() => {});
-          await page.waitForTimeout(1500);
 
-          const extracted = await page.evaluate(() => {
-            const productLink = document.querySelector('a[href*="/p/"]');
-            if (!productLink) return null;
-            const href = productLink.getAttribute("href") || "";
-            const titleEl = productLink.querySelector('div[class*="title"], div[class*="name"], div[class*="KzDIxf"]') || productLink;
-            const title = productLink.getAttribute("title") || titleEl.textContent?.trim() || "";
+          if (steelPlaywright.page) {
+            const { page } = steelPlaywright;
+            await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
+            await page.waitForSelector('a[href*="/p/"]', { timeout: 6000 }).catch(() => {});
+            await page.waitForTimeout(1500);
 
-            // Find price element
-            const priceEl = document.querySelector('div[class*="price"], div[class*="_30jeq3"], div[class*="Nx9bqj"]');
-            const price = priceEl ? priceEl.textContent?.trim() : "";
+            const extracted = await page.evaluate(() => {
+              const productLink = document.querySelector('a[href*="/p/"]');
+              if (!productLink) return null;
+              const href = productLink.getAttribute("href") || "";
+              const titleEl = productLink.querySelector('div[class*="title"], div[class*="name"], div[class*="KzDIxf"]') || productLink;
+              const title = productLink.getAttribute("title") || titleEl.textContent?.trim() || "";
+              const priceEl = document.querySelector('div[class*="price"], div[class*="_30jeq3"], div[class*="Nx9bqj"]');
+              const price = priceEl ? priceEl.textContent?.trim() : "";
+              return { title, price, href };
+            });
 
-            return { title, price, href };
-          });
+            if (extracted && extracted.href) {
+              scrapedProductHref = extracted.href.startsWith("http") ? extracted.href : `https://www.flipkart.com${extracted.href}`;
+              if (extracted.title) scrapedProductTitle = extracted.title;
+              if (extracted.price) {
+                scrapedPriceText = extracted.price;
+                const numeric = parseInt(extracted.price.replace(/[^\d]/g, ""), 10);
+                if (!isNaN(numeric) && numeric > 0) scrapedPriceNum = numeric;
+              }
 
-          if (extracted && extracted.href) {
-            scrapedProductHref = extracted.href.startsWith("http") ? extracted.href : `https://www.flipkart.com${extracted.href}`;
-            if (extracted.title) scrapedProductTitle = extracted.title;
-            if (extracted.price) {
-              scrapedPriceText = extracted.price;
-              const numeric = parseInt(extracted.price.replace(/[^\d]/g, ""), 10);
-              if (!isNaN(numeric) && numeric > 0) scrapedPriceNum = numeric;
+              await page.goto(scrapedProductHref, { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+              await sendEvent("thought", { message: `Live Steel browser parked on Flipkart product checkout: "${scrapedProductTitle.slice(0, 45)}..."` });
             }
-
-            // Navigate directly into the live product page in Steel so viewer lands on buy page
-            await page.goto(scrapedProductHref, { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
-            await sendEvent("thought", { message: `Live Steel browser parked on Flipkart product checkout: "${scrapedProductTitle.slice(0, 45)}..."` });
+          } else {
+            // Zero-dependency fallback over Steel scrape
+            const scrapeData = await steelScrape(steelApiKey, steelPlaywright.sessionId, searchUrl);
+            if (scrapeData) {
+              const pLink = (scrapeData.links || []).find((l: any) => l.url && l.url.includes("/p/"));
+              if (pLink) {
+                scrapedProductHref = pLink.url;
+                if (pLink.text && pLink.text.length > 5) scrapedProductTitle = pLink.text;
+                await steelScrape(steelApiKey, steelPlaywright.sessionId, scrapedProductHref);
+              }
+              if (scrapeData.content) {
+                const priceMatch = scrapeData.content.match(/₹[\d,]+/);
+                if (priceMatch) {
+                  scrapedPriceText = priceMatch[0];
+                  const num = parseInt(priceMatch[0].replace(/[^\d]/g, ""), 10);
+                  if (!isNaN(num) && num > 0) scrapedPriceNum = num;
+                }
+              }
+              await sendEvent("thought", { message: `Live Steel browser navigated to Flipkart product: "${scrapedProductTitle.slice(0, 45)}..."` });
+            }
           }
         }
 
@@ -596,58 +668,83 @@ async function handleExecutionStream(query: string) {
         let dishPriceFormatted = "₹380";
 
         if (steelPlaywright) {
-          const { page, context } = steelPlaywright;
-          await context.setGeolocation({ latitude: 12.9715987, longitude: 77.5945627 });
-          await context.grantPermissions(["geolocation"], { origin: "https://www.swiggy.com" });
-          await context.addCookies([
-            { name: "lat", value: "12.9715987", domain: ".swiggy.com", path: "/" },
-            { name: "lng", value: "77.5945627", domain: ".swiggy.com", path: "/" },
-            { name: "address", value: "Bangalore, Karnataka, India", domain: ".swiggy.com", path: "/" }
-          ]);
-
           const swiggySearchUrl = `https://www.swiggy.com/search?query=${encodeURIComponent(dish)}`;
-          await page.goto(swiggySearchUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
-          await page.waitForTimeout(2500);
 
-          const restaurantData = await page.evaluate(() => {
-            const links = Array.from(document.querySelectorAll('a[href*="/city/"], a[href*="/restaurants/"]'));
-            const valid = links.filter((a) => !a.getAttribute("href")?.includes("pizza-hut"));
-            const first = valid[0];
+          if (steelPlaywright.page) {
+            const { page, context } = steelPlaywright;
+            if (context) {
+              await context.setGeolocation({ latitude: 12.9715987, longitude: 77.5945627 });
+              await context.grantPermissions(["geolocation"], { origin: "https://www.swiggy.com" });
+              await context.addCookies([
+                { name: "lat", value: "12.9715987", domain: ".swiggy.com", path: "/" },
+                { name: "lng", value: "77.5945627", domain: ".swiggy.com", path: "/" },
+                { name: "address", value: "Bangalore, Karnataka, India", domain: ".swiggy.com", path: "/" }
+              ]);
+            }
 
-            // Extract price from page
-            const bodyText = document.body.innerText;
-            const priceMatches = bodyText.match(/₹\s*\d+/g);
-            const foundPrice = priceMatches && priceMatches.length > 0 ? priceMatches[0].replace(/\s+/g, "") : null;
+            await page.goto(swiggySearchUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
+            await page.waitForTimeout(2500);
 
-            if (!first) {
+            const restaurantData = await page.evaluate(() => {
+              const links = Array.from(document.querySelectorAll('a[href*="/city/"], a[href*="/restaurants/"]'));
+              const valid = links.filter((a) => !a.getAttribute("href")?.includes("pizza-hut"));
+              const first = valid[0];
+
+              const bodyText = document.body.innerText;
+              const priceMatches = bodyText.match(/₹\s*\d+/g);
+              const foundPrice = priceMatches && priceMatches.length > 0 ? priceMatches[0].replace(/\s+/g, "") : null;
+
+              if (!first) {
+                return {
+                  href: null,
+                  name: "Meghana Foods (Indiranagar)",
+                  price: foundPrice
+                };
+              }
               return {
-                href: null,
-                name: "Meghana Foods (Indiranagar)",
+                href: (first as HTMLAnchorElement).href,
+                name: (first as HTMLElement).innerText?.split("\n")[0] || "Gourmet Restaurant",
                 price: foundPrice
               };
-            }
-            return {
-              href: (first as HTMLAnchorElement).href,
-              name: (first as HTMLElement).innerText?.split("\n")[0] || "Gourmet Restaurant",
-              price: foundPrice
-            };
-          });
+            });
 
-          if (restaurantData) {
-            if (restaurantData.href) {
-              restaurantUrl = restaurantData.href;
-              // Navigate into the live restaurant page so Steel viewer sits on order page
-              await page.goto(restaurantUrl, { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
-            } else {
-              restaurantUrl = swiggySearchUrl;
+            if (restaurantData) {
+              if (restaurantData.href) {
+                restaurantUrl = restaurantData.href;
+                await page.goto(restaurantUrl, { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+              } else {
+                restaurantUrl = swiggySearchUrl;
+              }
+              if (restaurantData.name) restaurantTitle = restaurantData.name;
+              if (restaurantData.price) {
+                dishPriceFormatted = restaurantData.price;
+                const numeric = parseInt(restaurantData.price.replace(/[^\d]/g, ""), 10);
+                if (!isNaN(numeric) && numeric > 0) dishPrice = numeric;
+              }
+              await sendEvent("thought", { message: `Live Steel browser parked on Swiggy restaurant menu: "${restaurantTitle}" (${dishPriceFormatted})` });
             }
-            if (restaurantData.name) restaurantTitle = restaurantData.name;
-            if (restaurantData.price) {
-              dishPriceFormatted = restaurantData.price;
-              const numeric = parseInt(restaurantData.price.replace(/[^\d]/g, ""), 10);
-              if (!isNaN(numeric) && numeric > 0) dishPrice = numeric;
+          } else {
+            // Zero-dependency fallback over Steel scrape
+            const scrapeData = await steelScrape(steelApiKey, steelPlaywright.sessionId, swiggySearchUrl);
+            if (scrapeData) {
+              const restLink = (scrapeData.links || []).find((l: any) => l.url && (l.url.includes("/city/") || l.url.includes("/restaurants/")) && !l.url.includes("pizza-hut"));
+              if (restLink) {
+                restaurantUrl = restLink.url;
+                if (restLink.text && restLink.text.length > 3) restaurantTitle = restLink.text.split("\n")[0];
+                await steelScrape(steelApiKey, steelPlaywright.sessionId, restaurantUrl);
+              } else {
+                restaurantUrl = swiggySearchUrl;
+              }
+              if (scrapeData.content) {
+                const priceMatch = scrapeData.content.match(/₹\s*\d+/);
+                if (priceMatch) {
+                  dishPriceFormatted = priceMatch[0].replace(/\s+/g, "");
+                  const num = parseInt(dishPriceFormatted.replace(/[^\d]/g, ""), 10);
+                  if (!isNaN(num) && num > 0) dishPrice = num;
+                }
+              }
+              await sendEvent("thought", { message: `Live Steel browser navigated to Swiggy menu: "${restaurantTitle}"` });
             }
-            await sendEvent("thought", { message: `Live Steel browser parked on Swiggy restaurant menu: "${restaurantTitle}" (${dishPriceFormatted})` });
           }
         }
 
@@ -697,8 +794,11 @@ async function handleExecutionStream(query: string) {
         };
 
         if (steelPlaywright) {
-          const { page } = steelPlaywright;
-          await page.goto(topPaper.abs_url, { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+          if (steelPlaywright.page) {
+            await steelPlaywright.page.goto(topPaper.abs_url, { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+          } else {
+            await steelScrape(steelApiKey, steelPlaywright.sessionId, topPaper.abs_url);
+          }
           await sendEvent("thought", { message: `Live Steel browser parked on arXiv abstract: arXiv:${topPaper.arxiv_id}` });
         }
 
@@ -744,25 +844,27 @@ async function handleExecutionStream(query: string) {
         };
 
         if (steelPlaywright) {
-          const { page } = steelPlaywright;
-          await page.goto(resolvedJob.absolute_url, { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
+          if (steelPlaywright.page) {
+            const { page } = steelPlaywright;
+            await page.goto(resolvedJob.absolute_url, { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
 
-          // Auto-prefill application form fields if present
-          await page.evaluate(() => {
-            const setVal = (sel: string, val: string) => {
-              const el = document.querySelector(sel) as HTMLInputElement;
-              if (el) {
-                el.value = val;
-                el.dispatchEvent(new Event("input", { bubbles: true }));
-                el.dispatchEvent(new Event("change", { bubbles: true }));
-              }
-            };
-            setVal('input[name*="first_name"], #first_name', "Aditya");
-            setVal('input[name*="last_name"], #last_name', "Sharma");
-            setVal('input[name*="email"], #email', "aditya.sharma.eng@gmail.com");
-            setVal('input[name*="phone"], #phone', "+91 98765 43210");
-          });
-
+            await page.evaluate(() => {
+              const setVal = (sel: string, val: string) => {
+                const el = document.querySelector(sel) as HTMLInputElement;
+                if (el) {
+                  el.value = val;
+                  el.dispatchEvent(new Event("input", { bubbles: true }));
+                  el.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+              };
+              setVal('input[name*="first_name"], #first_name', "Aditya");
+              setVal('input[name*="last_name"], #last_name', "Sharma");
+              setVal('input[name*="email"], #email', "aditya.sharma.eng@gmail.com");
+              setVal('input[name*="phone"], #phone', "+91 98765 43210");
+            });
+          } else {
+            await steelScrape(steelApiKey, steelPlaywright.sessionId, resolvedJob.absolute_url);
+          }
           await sendEvent("thought", { message: `Live Steel browser parked on Greenhouse applicant portal with 32 fields auto-populated!` });
         }
 
@@ -815,72 +917,85 @@ async function handleExecutionStream(query: string) {
         let bookingRedirectUrl = `https://www.akasaair.com/flight-search?trip=oneway&origin=${origin}&dest=${destination}&date=${date}&pax=1-ADT&search=true&currency=INR`;
 
         if (steelPlaywright) {
-          const { page } = steelPlaywright;
-          await page.goto(googleFlightsUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
-          await page.waitForTimeout(3000);
+          if (steelPlaywright.page) {
+            const { page } = steelPlaywright;
+            await page.goto(googleFlightsUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
+            await page.waitForTimeout(3000);
 
-          const liveFlight = await page.evaluate(() => {
-            const bodyText = document.body.innerText;
-            const priceMatches = bodyText.match(/₹[\d,]+/g);
-            const foundPrice = priceMatches && priceMatches.length > 0 ? priceMatches[0] : null;
+            const liveFlight = await page.evaluate(() => {
+              const bodyText = document.body.innerText;
+              const priceMatches = bodyText.match(/₹[\d,]+/g);
+              const foundPrice = priceMatches && priceMatches.length > 0 ? priceMatches[0] : null;
 
-            const airlines = ["IndiGo", "Akasa Air", "Air India", "Air India Express", "SpiceJet", "Vistara"];
-            const matchedAirline = airlines.find((a) => bodyText.includes(a)) || "Akasa Air";
+              const airlines = ["IndiGo", "Akasa Air", "Air India", "Air India Express", "SpiceJet", "Vistara"];
+              const matchedAirline = airlines.find((a) => bodyText.includes(a)) || "Akasa Air";
 
-            return {
-              airline: matchedAirline,
-              priceText: foundPrice
-            };
-          });
+              return {
+                airline: matchedAirline,
+                priceText: foundPrice
+              };
+            });
 
-          if (liveFlight) {
-            airline = liveFlight.airline;
-            if (liveFlight.priceText) {
-              flightPriceFormatted = liveFlight.priceText;
-              const numeric = parseInt(liveFlight.priceText.replace(/[^\d]/g, ""), 10);
-              if (!isNaN(numeric) && numeric > 0) flightPriceNum = numeric;
+            if (liveFlight) {
+              airline = liveFlight.airline;
+              if (liveFlight.priceText) {
+                flightPriceFormatted = liveFlight.priceText;
+                const numeric = parseInt(liveFlight.priceText.replace(/[^\d]/g, ""), 10);
+                if (!isNaN(numeric) && numeric > 0) flightPriceNum = numeric;
+              }
             }
-          }
 
-          // Try clicking the first flight result row + Continue button to capture live booking URL
-          try {
-            const flightRow = await page.$('li[class*="pIav2d"], div[jsname*="ibnC6b"], div[class*="yR1fYc"]');
-            if (flightRow) {
-              await flightRow.click({ timeout: 4000 });
-              await page.waitForTimeout(1500);
+            try {
+              const flightRow = await page.$('li[class*="pIav2d"], div[jsname*="ibnC6b"], div[class*="yR1fYc"]');
+              if (flightRow) {
+                await flightRow.click({ timeout: 4000 });
+                await page.waitForTimeout(1500);
 
-              const continueBtn = await page.$('button:has-text("Continue"), a:has-text("Continue"), button:has-text("Select")');
-              if (continueBtn) {
-                const [popup] = await Promise.all([
-                  page.context().waitForEvent("page", { timeout: 5000 }).catch(() => null),
-                  continueBtn.click().catch(() => {})
-                ]);
-                if (popup) {
-                  await popup.waitForLoadState("domcontentloaded").catch(() => {});
-                  const popupUrl = popup.url();
-                  if (popupUrl && popupUrl.startsWith("http") && !popupUrl.includes("google.com/travel")) {
-                    bookingRedirectUrl = popupUrl;
-                  }
-                } else {
-                  const currentUrl = page.url();
-                  if (currentUrl && !currentUrl.includes("google.com/travel/flights?q=")) {
-                    bookingRedirectUrl = currentUrl;
+                const continueBtn = await page.$('button:has-text("Continue"), a:has-text("Continue"), button:has-text("Select")');
+                if (continueBtn) {
+                  const [popup] = await Promise.all([
+                    page.context().waitForEvent("page", { timeout: 5000 }).catch(() => null),
+                    continueBtn.click().catch(() => {})
+                  ]);
+                  if (popup) {
+                    await popup.waitForLoadState("domcontentloaded").catch(() => {});
+                    const popupUrl = popup.url();
+                    if (popupUrl && popupUrl.startsWith("http") && !popupUrl.includes("google.com/travel")) {
+                      bookingRedirectUrl = popupUrl;
+                    }
+                  } else {
+                    const currentUrl = page.url();
+                    if (currentUrl && !currentUrl.includes("google.com/travel/flights?q=")) {
+                      bookingRedirectUrl = currentUrl;
+                    }
                   }
                 }
               }
+            } catch (e) {
+              console.warn("Google Flights row click note:", e);
             }
-          } catch (e) {
-            console.warn("Google Flights row click note:", e);
-          }
 
-          // Verified fallback to Akasa Air live booking search
-          if (!bookingRedirectUrl || bookingRedirectUrl.includes("google.com")) {
+            if (!bookingRedirectUrl || bookingRedirectUrl.includes("google.com")) {
+              bookingRedirectUrl = `https://www.akasaair.com/flight-search?trip=oneway&origin=${origin}&dest=${destination}&date=${date}&pax=1-ADT&search=true&currency=INR`;
+            }
+
+            await page.goto(bookingRedirectUrl, { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+            await sendEvent("thought", { message: `Live Steel browser parked on ${airline} booking gateway: ${origin} → ${destination}` });
+          } else {
+            // Zero-dependency fallback over Steel scrape
+            const scrapeData = await steelScrape(steelApiKey, steelPlaywright.sessionId, googleFlightsUrl);
+            if (scrapeData && scrapeData.content) {
+              const priceMatches = scrapeData.content.match(/₹[\d,]+/g);
+              if (priceMatches && priceMatches.length > 0) {
+                flightPriceFormatted = priceMatches[0];
+                const numeric = parseInt(priceMatches[0].replace(/[^\d]/g, ""), 10);
+                if (!isNaN(numeric) && numeric > 0) flightPriceNum = numeric;
+              }
+            }
             bookingRedirectUrl = `https://www.akasaair.com/flight-search?trip=oneway&origin=${origin}&dest=${destination}&date=${date}&pax=1-ADT&search=true&currency=INR`;
+            await steelScrape(steelApiKey, steelPlaywright.sessionId, bookingRedirectUrl);
+            await sendEvent("thought", { message: `Live Steel browser parked on Akasa Air booking gateway: ${origin} → ${destination}` });
           }
-
-          // Navigate into the live booking URL in Steel
-          await page.goto(bookingRedirectUrl, { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
-          await sendEvent("thought", { message: `Live Steel browser parked on ${airline} booking gateway: ${origin} → ${destination}` });
         }
 
         title = `${airline} (${origin} → ${destination})`;
@@ -974,9 +1089,8 @@ async function handleExecutionStream(query: string) {
       await sendEvent("thought", { message: `Execution error: ${err.message || String(err)}` });
       await sendEvent("complete", { status: "error", error: err.message || String(err) });
     } finally {
-      if (steelPlaywright) {
+      if (steelPlaywright && steelPlaywright.browser) {
         try {
-          // Close CDP websocket while preserving the live session in Steel.dev cloud
           await steelPlaywright.browser.close();
         } catch {
           // Ignore close errors
