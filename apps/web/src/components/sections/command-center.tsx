@@ -47,6 +47,7 @@ export interface UniversalApprovalPayload {
     merchant_name: string;
     merchant_url: string;
     direct_booking_url?: string;
+    live_session_url?: string;
     price_formatted: string;
     price_number: number;
     savings_formatted?: string;
@@ -54,6 +55,8 @@ export interface UniversalApprovalPayload {
       label: string;
       value: string;
     }[];
+    papers?: any[];
+    job?: any;
     // Travel specific optional fields for backwards compatibility
     airline?: string;
     origin?: string;
@@ -69,11 +72,13 @@ export interface UniversalApprovalPayload {
   approval_button_text: string;
   audio_summary_text: string;
   execution_time_seconds: number;
+  live_session_url?: string;
 }
 
 export function normalizeApprovalPayload(raw: any): UniversalApprovalPayload {
   const opt = raw?.best_option || {};
   const domain = (raw?.domain || "travel").toLowerCase() as UniversalApprovalPayload["domain"];
+  const liveSessionUrl = opt.live_session_url || raw?.live_session_url;
 
   const title = opt.title || opt.dish_name || opt.airline || opt.job_title || opt.service_name || "Verified Recommendation";
   let subtitle = opt.subtitle || "";
@@ -165,10 +170,13 @@ export function normalizeApprovalPayload(raw: any): UniversalApprovalPayload {
       merchant_name: merchantName,
       merchant_url: merchantUrl,
       direct_booking_url: directBookingUrl,
+      live_session_url: liveSessionUrl,
       price_formatted: priceFormatted,
       price_number: priceNumber,
       savings_formatted: savingsFormatted,
-      specs
+      specs,
+      papers: opt.papers || raw?.papers,
+      job: opt.job || raw?.job
     },
     dom_proof: raw.dom_proof || {
       source_site: merchantName,
@@ -184,17 +192,20 @@ export function normalizeApprovalPayload(raw: any): UniversalApprovalPayload {
     savings_inr: typeof raw.savings_inr === "number" ? raw.savings_inr : 0,
     approval_button_text: raw.approval_button_text || `1-Click Approve (Hold & Pay ${priceFormatted})`,
     audio_summary_text: raw.audio_summary_text || `Verified ${domain} option ready for one-click approval.`,
-    execution_time_seconds: raw.execution_time_seconds || 2.5
+    execution_time_seconds: raw.execution_time_seconds || 2.5,
+    live_session_url: liveSessionUrl
   };
 }
 
 interface CommandCenterProps {
   initialQuery?: string;
+  autoExecuteSignal?: number;
   audioEnabled?: boolean;
 }
 
 export function CommandCenter({
   initialQuery = "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner",
+  autoExecuteSignal,
   audioEnabled = true,
 }: CommandCenterProps) {
   const router = useRouter();
@@ -231,11 +242,14 @@ export function CommandCenter({
       isFirstMount.current = false;
       return;
     }
-    if (initialQuery) {
+    if (autoExecuteSignal) {
+      if (initialQuery) setQuery(initialQuery);
+      handleExecute(initialQuery || query);
+    } else if (initialQuery) {
       setQuery(initialQuery);
       handleExecute(initialQuery);
     }
-  }, [initialQuery]);
+  }, [initialQuery, autoExecuteSignal]);
 
   // Client-side Web Crypto Merkle Tree Verification
   const verifyClientMerkle = async (proof: DOMProofPayload) => {
@@ -402,30 +416,33 @@ export function CommandCenter({
       });
     }
 
-    try {
-      const engineUrl = process.env.NEXT_PUBLIC_ENGINE_URL || "http://localhost:8000";
-      const resp = await fetch(`${engineUrl}/tasks/execute`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q, max_workers: 3 })
+    const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+    const wireEventSource = (es: EventSource, onFail?: () => void) => {
+      let receivedAny = false;
+
+      es.addEventListener("thought", (e: any) => {
+        receivedAny = true;
+        try {
+          const payload = JSON.parse(e.data);
+          setThoughts(prev => [...prev, payload.message || e.data]);
+        } catch {
+          setThoughts(prev => [...prev, e.data]);
+        }
       });
 
-      if (!resp.ok) throw new Error("Backend offline, switching to verified client emulation");
-
-      const data = await resp.json();
-      const eventSource = new EventSource(`${engineUrl}/tasks/${data.task_id}/stream`);
-
-      eventSource.addEventListener("thought", (e: any) => {
-        const payload = JSON.parse(e.data);
-        setThoughts(prev => [...prev, payload.message]);
+      es.addEventListener("worker_status", (e: any) => {
+        receivedAny = true;
+        try {
+          const status: WorkerStatus = JSON.parse(e.data);
+          setWorkers(prev => ({ ...prev, [status.worker_id]: status }));
+        } catch (err) {
+          console.error("Error parsing worker status:", err);
+        }
       });
 
-      eventSource.addEventListener("worker_status", (e: any) => {
-        const status: WorkerStatus = JSON.parse(e.data);
-        setWorkers(prev => ({ ...prev, [status.worker_id]: status }));
-      });
-
-      eventSource.addEventListener("approval_card", (e: any) => {
+      es.addEventListener("approval_card", (e: any) => {
+        receivedAny = true;
         try {
           const payload = JSON.parse(e.data);
           const normalized = normalizeApprovalPayload(payload);
@@ -436,19 +453,59 @@ export function CommandCenter({
         }
       });
 
-      eventSource.addEventListener("complete", () => {
+      es.addEventListener("complete", () => {
         setIsRunning(false);
-        eventSource.close();
+        es.close();
       });
 
-      eventSource.addEventListener("error", () => {
-        setIsRunning(false);
-        eventSource.close();
+      es.addEventListener("error", () => {
+        es.close();
+        if (!receivedAny && onFail) {
+          onFail();
+        } else {
+          setIsRunning(false);
+        }
       });
+    };
 
-    } catch {
-      runClientSimulation(q);
+    const connectApiExecute = (queryString: string) => {
+      try {
+        const es = new EventSource(`/api/execute?query=${encodeURIComponent(queryString)}`);
+        wireEventSource(es, () => {
+          console.warn("/api/execute stream unreachable, initiating client simulation fallback");
+          runClientSimulation(queryString);
+        });
+      } catch (err) {
+        console.warn("Could not initiate EventSource for /api/execute, using client simulation:", err);
+        runClientSimulation(queryString);
+      }
+    };
+
+    // 1. If running on localhost, attempt Python backend first
+    if (isLocalhost) {
+      try {
+        const engineUrl = process.env.NEXT_PUBLIC_ENGINE_URL || "http://localhost:8000";
+        const resp = await fetch(`${engineUrl}/tasks/execute`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q, max_workers: 3 })
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const eventSource = new EventSource(`${engineUrl}/tasks/${data.task_id}/stream`);
+          wireEventSource(eventSource, () => {
+            connectApiExecute(q);
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn("Local engine not running, routing to /api/execute:", err);
+      }
     }
+
+    // 2. Production or fallback: Route through same-origin /api/execute
+    connectApiExecute(q);
   };
 
   const runClientSimulation = (q: string) => {
@@ -634,7 +691,7 @@ export function CommandCenter({
             title: "Butter Chicken + 2 Butter Garlic Naan",
             subtitle: "Meghana Foods (4.6 ★) • 25 Mins Guaranteed Delivery",
             merchant_name: "Swiggy Gourmet - Meghana Foods",
-            merchant_url: "https://www.swiggy.com/city/bangalore/meghana-foods-5th-block-koramangala-rest10575",
+            merchant_url: "https://www.swiggy.com/search?query=Butter+Chicken+Garlic+Naan",
             direct_booking_url: "https://www.swiggy.com/checkout",
             price_formatted: "₹380",
             price_number: 380,
@@ -687,7 +744,7 @@ export function CommandCenter({
             subtitle: "arXiv:2501.12948 • Multi-stage Distillation Architecture",
             merchant_name: "arXiv Open Access",
             merchant_url: "https://arxiv.org/abs/2501.12948",
-            direct_booking_url: "/pay?domain=research&title=DeepSeek-R1%20Reasoning%20Synthesis&merchant=arXiv%20Open%20Access&price=Free",
+            direct_booking_url: "https://arxiv.org/abs/2501.12948",
             price_formatted: "Free (Open Access)",
             price_number: 0,
             specs: [
@@ -738,7 +795,7 @@ export function CommandCenter({
             subtitle: "Anthropic / Frontier AI Lab • $185,000 - $240,000 / yr",
             merchant_name: "Greenhouse.io Portal",
             merchant_url: "https://boards.greenhouse.io",
-            direct_booking_url: "/pay?domain=career&title=Staff%20AI%20Engineer%20Application&merchant=Greenhouse.io&price=Free",
+            direct_booking_url: "https://boards.greenhouse.io",
             price_formatted: "$185,000 / yr",
             price_number: 0,
             savings_formatted: "100% Automated",
@@ -865,7 +922,7 @@ export function CommandCenter({
   const handleOpenCheckoutVault = () => {
     if (!approvalCard || !approvalCard.best_option) return;
 
-    const directPayUrl = `/pay?domain=${approvalCard.domain}&title=${encodeURIComponent(approvalCard.best_option.title || '')}&price=${approvalCard.best_option.price_number || 0}&merchant=${encodeURIComponent(approvalCard.best_option.merchant_name || '')}`;
+    const directActionUrl = approvalCard.best_option.direct_booking_url || approvalCard.best_option.merchant_url || "/pay";
 
     setCheckoutVaultData({
       domain: approvalCard.domain,
@@ -875,8 +932,8 @@ export function CommandCenter({
       priceNumber: approvalCard.best_option.price_number || 0,
       savingsFormatted: approvalCard.best_option.savings_formatted,
       merchantName: approvalCard.best_option.merchant_name || "Verified Merchant",
-      merchantUrl: directPayUrl,
-      directBookingUrl: directPayUrl,
+      merchantUrl: approvalCard.best_option.merchant_url || directActionUrl,
+      directBookingUrl: directActionUrl,
       merkleRoot: approvalCard.dom_proof?.merkle_root || "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
       details: approvalCard.best_option.specs || []
     });
@@ -904,427 +961,411 @@ export function CommandCenter({
   };
 
   return (
-    <div id="command-center" className="w-full flex flex-col gap-6">
-      {/* Top Header of Command Center */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200 dark:border-zinc-800">
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold tracking-tight text-black dark:text-white font-sans flex items-center gap-2">
-            <span>Autonomous Web Execution Center</span>
-            <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
-              Live Fleet
-            </span>
-          </h2>
-          <p className="text-xs text-zinc-500 font-sans mt-0.5">
-            Real-time Steel.dev CDP sessions &bull; W3C C14N DOM normalizer &bull; 1-Action Checkout Vault
-          </p>
+    <div id="command-center" className="w-full flex flex-col gap-6 relative">
+      <div className="relative rounded-2xl border border-zinc-800 bg-zinc-950/90 p-5 md:p-8 cyber-grid shadow-2xl backdrop-blur-xl">
+
+        {/* Top Header of Command Center */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[10px] font-mono tracking-widest text-emerald-400 uppercase px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                STEEL.DEV CLOUD CDP FLEET // AUTONOMOUS SWARM
+              </span>
+              <span className="text-[10px] font-mono text-zinc-500 uppercase">
+                4-TIER REASONING CASCADE
+              </span>
+            </div>
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white font-sans flex items-center gap-2">
+              <span>Autonomous Web Execution Center</span>
+            </h2>
+            <p className="text-xs text-zinc-400 font-sans mt-0.5">
+              Real-time Steel.dev CDP sessions &bull; W3C C14N DOM normalizer &bull; 1-Action Checkout Vault
+            </p>
+          </div>
+
+          {/* Live Status Indicators */}
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-zinc-200">Steel.dev Cloud</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-cyan-400" />
+              <span className="text-zinc-200">Nova-3 STT</span>
+            </div>
+          </div>
         </div>
 
-        {/* Live Status Indicators */}
-        <div className="flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-medium text-zinc-700 dark:text-zinc-300">Steel.dev Cloud</span>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
-            <span className="font-medium text-zinc-700 dark:text-zinc-300">Nova-3 STT</span>
-          </div>
-        </div>
-      </div>
+        {/* Main Grid: Left Execution Engine (7 cols) + Right Approval Card (5 cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
+          {/* Left Column: Command Input + Workers + Thought Stream */}
+          <div className="lg:col-span-7 flex flex-col gap-5">
+            {/* Active Command Bar */}
+            <div className="bg-[#0b0f17]/90 rounded-xl p-4 border border-zinc-800 flex flex-col gap-3 shadow-inner">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleExecute()}
+                  placeholder="Instruct GhostBrowser across Flights, E-Commerce, Food, or Research..."
+                  className="w-full bg-[#05070a] border border-zinc-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40 rounded-lg px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none transition pr-24 font-sans"
+                />
+                <div className="absolute right-2 flex items-center gap-1.5">
+                  <button
+                    onClick={handleMicToggle}
+                    className={`p-2 rounded-md border transition ${
+                      isRecording
+                        ? "bg-red-950/80 border-red-500 text-red-400 animate-pulse"
+                        : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700"
+                    }`}
+                    title="Voice Input (Deepgram Nova-3)"
+                  >
+                    {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </button>
+                  <button
+                    onClick={() => handleExecute()}
+                    disabled={isRunning}
+                    className="px-3.5 py-2 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center gap-1 transition disabled:opacity-40 shadow-sm"
+                  >
+                    <span>{isRunning ? "Running..." : "Execute"}</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
 
-      {/* Main Grid: Left Execution Engine (7 cols) + Right Approval Card (5 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Command Input + Workers + Thought Stream */}
-        <div className="lg:col-span-7 flex flex-col gap-5">
-          {/* Active Command Bar */}
-          <div className="bg-zinc-50 dark:bg-zinc-900/60 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-3">
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleExecute()}
-                placeholder="Instruct GhostBrowser across Flights, E-Commerce, Food, or Research..."
-                className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 focus:border-black dark:focus:border-white rounded-lg px-4 py-3 text-sm text-black dark:text-white placeholder:text-zinc-400 focus:outline-none transition pr-24 font-sans"
-              />
-              <div className="absolute right-2 flex items-center gap-1.5">
+              {/* Multi-Workflow Quick Prompts */}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
+                <span className="text-zinc-500 font-medium text-[11px] mr-1">WORKFLOW SELECT:</span>
                 <button
-                  onClick={handleMicToggle}
-                  className={`p-2 rounded-md border transition ${
-                    isRecording
-                      ? "bg-red-50 border-red-300 text-red-600 animate-pulse dark:bg-red-950/50"
-                      : "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-black dark:hover:text-white"
-                  }`}
-                  title="Voice Input (Deepgram Nova-3)"
+                  onClick={() => {
+                    const q = "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner";
+                    setQuery(q);
+                    handleExecute(q);
+                  }}
+                  className="px-2.5 py-1 rounded-md bg-zinc-900/80 border border-zinc-800 hover:border-emerald-500/60 hover:text-emerald-300 text-zinc-300 transition text-[11px]"
                 >
-                  {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  ✈️ Flight: BLR → COK (IndiGo)
                 </button>
                 <button
-                  onClick={() => handleExecute()}
-                  disabled={isRunning}
-                  className="px-3.5 py-2 rounded-md bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs flex items-center gap-1 transition disabled:opacity-40"
+                  onClick={() => {
+                    const q = "Track M3 MacBook Air 16GB price on Amazon vs Flipkart";
+                    setQuery(q);
+                    handleExecute(q);
+                  }}
+                  className="px-2.5 py-1 rounded-md bg-zinc-900/80 border border-zinc-800 hover:border-emerald-500/60 hover:text-emerald-300 text-zinc-300 transition text-[11px]"
                 >
-                  <span>{isRunning ? "Running..." : "Execute"}</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  🛍️ E-Commerce: MacBook M3 Arbitrage
+                </button>
+                <button
+                  onClick={() => {
+                    const q = "Order Butter Chicken and Garlic Naan on Swiggy vs Zomato in 25 mins";
+                    setQuery(q);
+                    handleExecute(q);
+                  }}
+                  className="px-2.5 py-1 rounded-md bg-zinc-900/80 border border-zinc-800 hover:border-emerald-500/60 hover:text-emerald-300 text-zinc-300 transition text-[11px]"
+                >
+                  🍲 Food: Butter Chicken & Naan
+                </button>
+                <button
+                  onClick={() => {
+                    const q = "Synthesize DeepSeek R1 reasoning architecture paper on arXiv";
+                    setQuery(q);
+                    handleExecute(q);
+                  }}
+                  className="px-2.5 py-1 rounded-md bg-zinc-900/80 border border-zinc-800 hover:border-emerald-500/60 hover:text-emerald-300 text-zinc-300 transition text-[11px]"
+                >
+                  📄 Research: DeepSeek-R1 arXiv
+                </button>
+                <button
+                  onClick={() => {
+                    const q = "Apply to Staff AI Engineer on Greenhouse & Lever with resume";
+                    setQuery(q);
+                    handleExecute(q);
+                  }}
+                  className="px-2.5 py-1 rounded-md bg-zinc-900/80 border border-zinc-800 hover:border-emerald-500/60 hover:text-emerald-300 text-zinc-300 transition text-[11px]"
+                >
+                  💼 Career: Staff AI Engineer (Greenhouse)
                 </button>
               </div>
             </div>
 
-            {/* Multi-Workflow Quick Prompts */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="text-zinc-400 font-medium text-[11px] mr-1">Workflows:</span>
-              <button
-                onClick={() => {
-                  const q = "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner";
-                  setQuery(q);
-                  handleExecute(q);
-                }}
-                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
-              >
-                ✈️ Flight: BLR → COK (IndiGo)
-              </button>
-              <button
-                onClick={() => {
-                  const q = "Track M3 MacBook Air 16GB price on Amazon vs Flipkart";
-                  setQuery(q);
-                  handleExecute(q);
-                }}
-                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
-              >
-                🛍️ E-Commerce: MacBook M3 Arbitrage
-              </button>
-              <button
-                onClick={() => {
-                  const q = "Order Butter Chicken and Garlic Naan on Swiggy vs Zomato in 25 mins";
-                  setQuery(q);
-                  handleExecute(q);
-                }}
-                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
-              >
-                🍲 Food: Butter Chicken & Naan
-              </button>
-              <button
-                onClick={() => {
-                  const q = "Synthesize DeepSeek R1 reasoning architecture paper on arXiv";
-                  setQuery(q);
-                  handleExecute(q);
-                }}
-                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
-              >
-                📄 Research: DeepSeek-R1 arXiv
-              </button>
-              <button
-                onClick={() => {
-                  const q = "Apply to Staff AI Engineer on Greenhouse & Lever with resume";
-                  setQuery(q);
-                  handleExecute(q);
-                }}
-                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
-              >
-                💼 Career: Staff AI Engineer (Greenhouse)
-              </button>
-            </div>
-          </div>
-
-          {/* Minimalist Thought Stream Terminal */}
-          <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-2 shadow-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800 text-xs">
-              <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300 font-medium">
-                <Terminal className="w-3.5 h-3.5" />
-                <span>Streaming Reasoning Trace</span>
+            {/* Thought Stream Terminal */}
+            <div className="bg-[#05070a] rounded-xl p-4 border border-zinc-800/90 flex flex-col gap-2 shadow-inner font-mono">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80 text-xs">
+                <div className="flex items-center gap-2 text-emerald-400 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <Terminal className="w-3.5 h-3.5" />
+                  <span>STREAMING REASONING TRACE</span>
+                </div>
+                <span className="font-mono text-[10px] text-zinc-500 uppercase">
+                  4-TIER REASONING CASCADE
+                </span>
               </div>
-              <span className="font-mono text-[10px] text-zinc-400 uppercase">
-                4-Tier Cascade
-              </span>
+
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                {thoughts.map((thought, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-xs font-mono text-zinc-300">
+                    <span className="text-emerald-500 select-none">›</span>
+                    <span className="break-all">{thought}</span>
+                  </div>
+                ))}
+                {isRunning && (
+                  <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 animate-pulse">
+                    <span>›</span>
+                    <span>Synthesizing browser actions & DOM diffs...</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-              {thoughts.map((thought, idx) => (
-                <div key={idx} className="flex items-start gap-2 text-xs font-mono text-zinc-700 dark:text-zinc-300">
-                  <span className="text-zinc-400 select-none">›</span>
-                  <span className="break-all">{thought}</span>
-                </div>
-              ))}
-              {isRunning && (
-                <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 animate-pulse">
-                  <span>›</span>
-                  <span>Synthesizing browser actions & DOM diffs...</span>
-                </div>
-              )}
-            </div>
-          </div>
+            {/* Steel.dev Worker Telemetry Matrix */}
+            <div className="bg-[#0b0f17]/80 rounded-xl p-4 border border-zinc-800 flex flex-col gap-3 shadow-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80 text-xs font-mono">
+                <span className="font-medium text-zinc-300">
+                  Steel.dev CDP Fleet Telemetry (3 Parallel Contexts)
+                </span>
+                <span className="text-[10px] text-cyan-400 uppercase">
+                  Stealth WebSocket CDP
+                </span>
+              </div>
 
-          {/* Steel.dev Worker Telemetry Matrix */}
-          <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-3 shadow-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800 text-xs">
-              <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                Steel.dev CDP Fleet Telemetry (3 Parallel Contexts)
-              </span>
-              <span className="font-mono text-[10px] text-zinc-400 uppercase">
-                Stealth WebSocket CDP
-              </span>
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {Object.values(workers).map((w) => (
+                  <div
+                    key={w.worker_id}
+                    className="p-3 rounded-lg bg-[#05070a] border border-zinc-800 hover:border-zinc-700 transition flex flex-col justify-between gap-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-white font-sans truncate">
+                        {w.target_site}
+                      </span>
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          w.status === "verified"
+                            ? "bg-emerald-500"
+                            : w.status === "extracting" || w.status === "navigating"
+                            ? "bg-cyan-400 animate-ping"
+                            : "bg-zinc-700"
+                        }`}
+                      />
+                    </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {Object.values(workers).map((w) => (
-                <div
-                  key={w.worker_id}
-                  className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-black dark:text-white font-sans truncate">
-                      {w.target_site}
+                    <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden border border-zinc-800">
+                      <div
+                        className="bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500 h-1.5 rounded-full transition-all duration-300"
+                        style={{ width: `${w.progress}%` }}
+                      />
+                    </div>
+
+                    <span className="text-[10px] text-zinc-400 truncate font-mono">
+                      {w.current_action}
                     </span>
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        w.status === "verified"
-                          ? "bg-emerald-500"
-                          : w.status === "extracting" || w.status === "navigating"
-                          ? "bg-amber-500 animate-ping"
-                          : "bg-zinc-300 dark:bg-zinc-700"
-                      }`}
-                    />
                   </div>
-
-                  <div className="w-full bg-zinc-200 dark:bg-zinc-800 rounded-full h-1 overflow-hidden">
-                    <div
-                      className="bg-black dark:bg-white h-1 rounded-full transition-all duration-300"
-                      style={{ width: `${w.progress}%` }}
-                    />
-                  </div>
-
-                  <span className="text-[10px] text-zinc-500 truncate font-mono">
-                    {w.current_action}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Right Column: 1-Action Approval Card with 3D Tilt & Border Beam */}
-        <div className="lg:col-span-5 flex flex-col justify-center">
-          {approvalCard ? (
-            <CardContainer containerClassName="w-full py-0">
-              <CardBody className="w-full">
-                <div className="relative bg-white dark:bg-zinc-900 rounded-2xl p-6 border-2 border-zinc-900 dark:border-zinc-100 shadow-xl flex flex-col gap-4 overflow-hidden">
-                  {/* Traveling Border Beam */}
-                  <BorderBeam size={180} duration={6} colorFrom="#10b981" colorTo="#00f0ff" />
+          {/* Right Column: 1-Action Approval Card with 3D Tilt & Border Beam */}
+          <div className="lg:col-span-5 flex flex-col justify-center">
+            {approvalCard ? (
+              <CardContainer containerClassName="w-full py-0">
+                <CardBody className="w-full">
+                  <div className="relative bg-[#07090e]/95 rounded-2xl p-6 border border-zinc-800 shadow-2xl flex flex-col gap-4 overflow-hidden">
+                    {/* Traveling Border Beam with Emerald & Cyan */}
+                    <BorderBeam size={180} duration={6} colorFrom="#10b981" colorTo="#06b6d4" />
 
-                  <CardItem translateZ={30} className="w-full flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      {getDomainIcon(approvalCard.domain)}
-                      <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider font-sans">
-                        Verified {approvalCard.domain} Recommendation
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setShowMerkleModal(true)}
-                      className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-[10px] font-mono flex items-center gap-1.5 transition border border-zinc-200 dark:border-zinc-700"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Inspect Merkle Proof</span>
-                    </button>
-                  </CardItem>
-
-                  {/* Price & Primary Heading with 3D Parallax */}
-                  <CardItem translateZ={50} className="w-full">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl md:text-4xl font-bold tracking-tight text-black dark:text-white font-sans">
-                        {approvalCard.best_option?.price_formatted || ""}
-                      </span>
-                      {approvalCard.best_option?.savings_formatted && (
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono font-semibold">
-                          Saved {approvalCard.best_option.savings_formatted}
+                    <CardItem translateZ={30} className="w-full flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        {getDomainIcon(approvalCard.domain)}
+                        <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider font-mono">
+                          Verified {approvalCard.domain} Recommendation
                         </span>
-                      )}
-                    </div>
-                    <h3 className="text-base font-bold text-black dark:text-white mt-1 font-sans">
-                      {approvalCard.best_option?.title || "Verified Recommendation"}
-                    </h3>
-                    <p className="text-xs text-zinc-500 font-sans mt-0.5">
-                      {approvalCard.best_option?.subtitle || ""}
-                    </p>
-                  </CardItem>
+                      </div>
+                      <button
+                        onClick={() => setShowMerkleModal(true)}
+                        className="px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-200 text-[10px] font-mono flex items-center gap-1.5 transition border border-zinc-800 hover:border-zinc-700"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Inspect Merkle Proof</span>
+                      </button>
+                    </CardItem>
 
-                  {/* Dynamic Specs Grid per Workflow */}
-                  <CardItem translateZ={40} className="w-full">
-                    <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-left font-sans text-xs">
-                      {(approvalCard.best_option?.specs || []).map((spec, idx) => (
-                        <div key={idx}>
-                          <span className="text-[10px] text-zinc-400 uppercase block font-mono">
-                            {spec.label}
+                    {/* Price & Primary Heading with 3D Parallax */}
+                    <CardItem translateZ={50} className="w-full">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl md:text-4xl font-bold tracking-tight text-white font-sans">
+                          {approvalCard.best_option?.price_formatted || ""}
+                        </span>
+                        {approvalCard.best_option?.savings_formatted && (
+                          <span className="text-xs text-emerald-400 font-mono font-semibold">
+                            Saved {approvalCard.best_option.savings_formatted}
                           </span>
-                          <span className="text-xs font-semibold text-black dark:text-white line-clamp-1">
-                            {spec.value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardItem>
+                        )}
+                      </div>
+                      <h3 className="text-base font-bold text-white mt-1 font-sans">
+                        {approvalCard.best_option?.title || "Verified Recommendation"}
+                      </h3>
+                      <p className="text-xs text-zinc-400 font-sans mt-0.5">
+                        {approvalCard.best_option?.subtitle || ""}
+                      </p>
+                    </CardItem>
 
-                  {/* Security Highlights */}
-                  <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-300 font-sans border-t border-zinc-100 dark:border-zinc-800 pt-3">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>Prefilled by Steel.dev CDP &bull; Bypassed 47 manual inputs</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>W3C C14N Canonical DOM Merkle Root Signed</span>
-                    </div>
-                  </div>
+                    {/* Dynamic Specs Grid per Workflow */}
+                    <CardItem translateZ={40} className="w-full">
+                      <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-[#05070a] border border-zinc-800 text-left font-sans text-xs">
+                        {(approvalCard.best_option?.specs || []).map((spec, idx) => (
+                          <div key={idx}>
+                            <span className="text-[10px] text-zinc-400 uppercase block font-mono">
+                              {spec.label}
+                            </span>
+                            <span className="text-xs font-semibold text-white line-clamp-1">
+                              {spec.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardItem>
 
-                  {/* 1-Action Approval Trigger with 3D Depth */}
-                  <CardItem translateZ={60} className="w-full">
-                    {isApproved ? (
-                      <div className="space-y-3">
-                        <div className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-center font-semibold text-xs flex items-center justify-center gap-2 font-sans">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                          <span>1-Click Approval Armed &bull; Inventory Locked</span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <button
-                            onClick={handleApproveAndPay}
-                            className="w-full py-2.5 rounded-lg bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-1.5 shadow-xs font-sans cursor-pointer"
-                          >
-                            <Lock className="w-3.5 h-3.5" />
-                            <span>Go to Payment ({approvalCard.best_option?.price_formatted || "Locked"}) →</span>
-                          </button>
-                          <button
-                            onClick={handleOpenCheckoutVault}
-                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans cursor-pointer"
-                          >
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>Preview Vault Modal</span>
-                          </button>
-                        </div>
+                    {/* Security Highlights */}
+                    <div className="space-y-1.5 text-xs text-zinc-300 font-sans border-t border-zinc-800/80 pt-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>Prefilled by Steel.dev CDP &bull; Bypassed 47 manual inputs</span>
                       </div>
-                    ) : approvalCard.domain === "research" ? (
-                      <div className="flex flex-col gap-2">
-                        <button
-                          onClick={() => setShowResearchModal(true)}
-                          className="w-full py-3.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs md:text-sm tracking-wide transition shadow-sm flex items-center justify-center gap-2 font-sans"
-                        >
-                          <BookOpen className="w-4 h-4" />
-                          <span>View Synthesized Research Report & Mathematical Proofs</span>
-                        </button>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <a
-                            href="https://arxiv.org/pdf/2501.12948.pdf"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
-                          >
-                            <Download className="w-3.5 h-3.5 text-sky-400" />
-                            <span>Download arXiv PDF (34pp)</span>
-                            <ExternalLink className="w-3 h-3 text-zinc-500" />
-                          </a>
-                          <button
-                            onClick={() => setShowResearchModal(true)}
-                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
-                          >
-                            <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Export Markdown (.md)</span>
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-zinc-400 text-center font-sans">
-                          Open Access verified via arXiv API &bull; Zero subscription paywall.
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>W3C C14N Canonical DOM Merkle Root Signed</span>
                       </div>
-                    ) : approvalCard.domain === "career" ? (
-                      <div className="flex flex-col gap-2">
-                        <button
-                          onClick={() => setShowCareerModal(true)}
-                          className="w-full py-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs md:text-sm tracking-wide transition shadow-sm flex items-center justify-center gap-2 font-sans"
-                        >
-                          <Briefcase className="w-4 h-4" />
-                          <span>Inspect 32 ATS Inputs & 1-Click Submit</span>
-                        </button>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <button
-                            onClick={() => setShowCareerModal(true)}
-                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
-                          >
-                            <Download className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Download Tailored Resume</span>
-                          </button>
-                          <a
-                            href="https://boards.greenhouse.io"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 text-zinc-500" />
-                            <span>Greenhouse Portal</span>
-                          </a>
-                        </div>
-                        <p className="text-[11px] text-zinc-400 text-center font-sans">
-                          Pre-populated 32 application fields from resume &bull; Zero manual typing.
-                        </p>
-                      </div>
-                    ) : (
+                    </div>
+
+                    {/* 1-Action Approval Trigger with 3D Depth */}
+                    <CardItem translateZ={60} className="w-full">
                       <div className="flex flex-col gap-2.5">
-                        {/* Primary Action 1: Proceed Directly to Real Live Merchant Checkout */}
+                        {isApproved && (
+                          <div className="p-3 rounded-lg bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 text-center font-semibold text-xs flex items-center justify-center gap-2 font-sans shadow-inner">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <span>1-Click Approval Armed &bull; Inventory &amp; Fare Locked</span>
+                          </div>
+                        )}
+
+                        {/* Live Steel.dev Interactive Browser Session (when active) */}
+                        {approvalCard.best_option?.live_session_url && (
+                          <a
+                            href={approvalCard.best_option.live_session_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm tracking-wide transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-cyan-950/40 flex items-center justify-center gap-2 font-sans cursor-pointer border border-cyan-400/50"
+                          >
+                            <span className="text-base">🖥️</span>
+                            <span>Open Pre-Loaded Live Browser Checkout Session ↗</span>
+                          </a>
+                        )}
+
+                        {/* Primary CTA Button: [ 🚀 Launch Live {Merchant} Checkout Page ↗ ] in emerald/green */}
                         <a
                           href={approvalCard.best_option?.direct_booking_url || approvalCard.best_option?.merchant_url || "/pay"}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs md:text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-lg flex items-center justify-center gap-2 font-sans cursor-pointer"
+                          className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm tracking-wide transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 font-sans cursor-pointer border border-emerald-400/40"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <span className="text-base">🚀</span>
                           <span>Launch Live {approvalCard.best_option?.merchant_name || 'Merchant'} Checkout Page ↗</span>
                         </a>
 
-                        {/* Primary Action 2: 1-Click Pay via GhostBrowser Vault */}
+                        {/* Secondary CTA Button: [ ⚡ 1-Click Pay via GhostBrowser Vault (UPI / Card) → ] linking to /pay */}
                         <button
                           onClick={handleApproveAndPay}
-                          className="w-full py-3 rounded-xl bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs md:text-sm tracking-wide transition flex items-center justify-center gap-2 font-sans cursor-pointer shadow-sm"
+                          className="w-full py-3 rounded-xl bg-zinc-950 hover:bg-zinc-900 text-white font-semibold text-xs sm:text-sm tracking-wide transition flex items-center justify-center gap-2 font-sans cursor-pointer shadow-sm border border-zinc-700 hover:border-emerald-500/60 text-zinc-200 hover:text-white"
                         >
-                          <Lock className="w-4 h-4 text-emerald-500" />
-                          <span>{approvalCard.approval_button_text} (Pay via Vault) →</span>
+                          <span className="text-emerald-400 text-base">⚡</span>
+                          <span>1-Click Pay via GhostBrowser Vault (UPI / Card) →</span>
                         </button>
 
+                        {/* Domain-Specific Interactive Tools */}
+                        {approvalCard.domain === "research" ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                            <button
+                              onClick={() => setShowResearchModal(true)}
+                              className="w-full py-2.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-700/60 font-sans cursor-pointer"
+                            >
+                              <BookOpen className="w-3.5 h-3.5 text-sky-400" />
+                              <span>View Research Synthesis</span>
+                            </button>
+                            <a
+                              href="https://arxiv.org/pdf/2501.12948.pdf"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full py-2.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-700/60 font-sans cursor-pointer"
+                            >
+                              <Download className="w-3.5 h-3.5 text-sky-400" />
+                              <span>Download arXiv PDF (34pp)</span>
+                              <ExternalLink className="w-3 h-3 text-zinc-500" />
+                            </a>
+                          </div>
+                        ) : approvalCard.domain === "career" ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                            <button
+                              onClick={() => setShowCareerModal(true)}
+                              className="w-full py-2.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-700/60 font-sans cursor-pointer"
+                            >
+                              <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Inspect 32 ATS Inputs</span>
+                            </button>
+                            <button
+                              onClick={() => setShowCareerModal(true)}
+                              className="w-full py-2.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-700/60 font-sans cursor-pointer"
+                            >
+                              <Download className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Download Tailored Resume</span>
+                            </button>
+                          </div>
+                        ) : null}
+
+                        {/* Modal Preview & Direct Store Row */}
                         <div className="grid grid-cols-2 gap-2 pt-0.5">
                           <button
                             onClick={handleOpenCheckoutVault}
-                            className="w-full py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-800 font-sans cursor-pointer"
+                            className="w-full py-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-800 font-sans cursor-pointer"
                           >
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                             <span>Preview Vault Modal</span>
                           </button>
                           <a
                             href={approvalCard.best_option?.merchant_url || approvalCard.best_option?.direct_booking_url || "/pay"}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-full py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-800 font-sans cursor-pointer"
+                            className="w-full py-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-800 font-sans cursor-pointer"
                           >
-                            <ExternalLink className="w-3.5 h-3.5 text-cyan-500" />
-                            <span>Direct Portal</span>
+                            <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                            <span>Direct Store Page</span>
                           </a>
                         </div>
+
                         <p className="text-[11px] text-zinc-400 text-center font-sans">
                           Autonomously pre-filled 47 form fields. Takes you straight to payment gateway.
                         </p>
                       </div>
-                    )}
-                  </CardItem>
+                    </CardItem>
+                  </div>
+                </CardBody>
+              </CardContainer>
+            ) : (
+              <div className="bg-[#07090e]/90 rounded-2xl p-8 border border-zinc-800 shadow-xs flex flex-col items-center justify-center text-center gap-3 text-zinc-400 min-h-[360px]">
+                <Bot className="w-10 h-10 stroke-1 text-zinc-500" />
+                <div>
+                  <p className="text-sm font-semibold text-white font-sans">
+                    1-Action Approval Card Standby
+                  </p>
+                  <p className="text-xs text-zinc-400 max-w-xs mt-1 font-sans">
+                    Execute an autonomous instruction across Flights, E-Commerce, Food, or Research to generate verified DOM proof.
+                  </p>
                 </div>
-              </CardBody>
-            </CardContainer>
-          ) : (
-            <div className="bg-white dark:bg-zinc-900 rounded-xl p-8 border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col items-center justify-center text-center gap-3 text-zinc-400 min-h-[360px]">
-              <Bot className="w-10 h-10 stroke-1 text-zinc-300 dark:text-zinc-700" />
-              <div>
-                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 font-sans">
-                  1-Action Approval Card Standby
-                </p>
-                <p className="text-xs text-zinc-400 max-w-xs mt-1 font-sans">
-                  Execute an autonomous instruction across Flights, E-Commerce, Food, or Research to generate verified DOM proof.
-                </p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -1349,12 +1390,22 @@ export function CommandCenter({
       <ResearchSynthesisModal
         isOpen={showResearchModal}
         onClose={() => setShowResearchModal(false)}
+        paperTitle={approvalCard?.best_option?.title}
+        arxivId={approvalCard?.best_option?.specs?.find(s => s.label.toLowerCase().includes("id") || s.label.toLowerCase().includes("citation"))?.value.replace("arXiv:", "").trim() || "2501.12948"}
+        merkleRoot={approvalCard?.dom_proof?.merkle_root}
+        papers={approvalCard?.best_option?.papers}
+        pdfUrl={approvalCard?.best_option?.direct_booking_url || "https://arxiv.org/pdf/2501.12948.pdf"}
       />
 
       {/* 32 ATS Inputs & One-Click Job Application Modal */}
       <CareerApplicationModal
         isOpen={showCareerModal}
         onClose={() => setShowCareerModal(false)}
+        job={approvalCard?.best_option?.job}
+        jobTitle={approvalCard?.best_option?.title}
+        companyName={approvalCard?.best_option?.merchant_name}
+        applyUrl={approvalCard?.best_option?.direct_booking_url || "https://boards.greenhouse.io"}
+        merkleRoot={approvalCard?.dom_proof?.merkle_root}
       />
     </div>
   );

@@ -89,6 +89,66 @@
 
 /* Subtle dot matrix background */
 .dot-pattern {
-  background-image: radial-gradient(#d4d4d8 0.75px, transparent 0.75px);
+  background-image: radial-gradient(#27272a 0.75px, transparent 0.75px);
   background-size: 16px 16px;
+}
+
+/* GhostBrowser Native Cyber Tokens */
+:root {
+  --neon-emerald: #10b981;
+  --neon-cyan: #06b6d4;
+  --neon-emerald-glow: rgba(16, 185, 129, 0.35);
+  --neon-cyan-glow: rgba(6, 182, 212, 0.35);
+  --obsidian-dark: #09090b;
+  --obsidian-surface: #121215;
+}
+
+@keyframes pulse-emerald {
+  0%, 100% {
+    opacity: 0.5;
+    filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.25));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 16px rgba(16, 185, 129, 0.6));
+  }
+}
+
+@keyframes pulse-cyan {
+  0%, 100% {
+    opacity: 0.5;
+    filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.25));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 16px rgba(6, 182, 212, 0.6));
+  }
+}
+
+.animate-pulse-emerald {
+  animation: pulse-emerald 3.5s ease-in-out infinite;
+}
+
+.animate-pulse-cyan {
+  animation: pulse-cyan 3.5s ease-in-out infinite;
+}
+
+.glow-emerald {
+  box-shadow: 0 0 25px -4px rgba(16, 185, 129, 0.4);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 25px -4px rgba(6, 182, 212, 0.4);
+}
+
+.glow-emerald-border {
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3), inset 0 0 15px rgba(16, 185, 129, 0.1);
+}
+
+.cyber-grid {
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
 }

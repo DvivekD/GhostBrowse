@@ -482,7 +482,7 @@ function PayContent() {
 
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] font-mono text-zinc-500">
-              <Clock className="w-3 h-3 text-amber-500" />
+              <Clock className="w-3 h-3 text-emerald-400" />
               <span>Session Holds:</span>
               <span className="font-bold text-black dark:text-white">{formattedTimer}</span>
             </div>

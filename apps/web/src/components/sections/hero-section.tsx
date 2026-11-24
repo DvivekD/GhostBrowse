@@ -1,10 +1,18 @@
 "use client";
 
 import React from "react";
-import { ArrowUpRight, Mic, Sparkles, ShieldCheck, Zap, Layers } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { BorderBeam } from "@/components/ui/border-beam";
-import { ParticleMesh } from "@/components/ui/particle-mesh";
+import { 
+  ArrowUpRight, 
+  Mic, 
+  Sparkles, 
+  Cpu, 
+  ShieldCheck, 
+  Layers, 
+  Radio, 
+  Zap, 
+  Terminal, 
+  CheckCircle2 
+} from "lucide-react";
 
 interface HeroSectionProps {
   onExecuteQuery: (query: string) => void;
@@ -28,50 +36,98 @@ export function HeroSection({
   };
 
   return (
-    <div className="relative flex flex-col items-center text-center max-w-4xl mx-auto px-4 pt-12 md:pt-20 pb-8 overflow-hidden">
-      {/* Interactive Background Particle Mesh */}
-      <ParticleMesh particleCount={30} />
-      {/* Track & Hackathon Pre-header Badge */}
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs mb-6 transition-transform hover:scale-[1.02]">
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 font-sans">
-          wHACKiest 2026 • Track 2: Beyond the Browser
+    <section className="relative w-full max-w-6xl mx-auto px-4 pt-16 md:pt-24 pb-12 flex flex-col items-center text-center z-10">
+      
+      {/* 1. GhostBrowser Fleet Active Badge */}
+      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 border border-emerald-500/40 backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.2)] mb-6 transition-transform hover:scale-[1.02]">
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-300">
+          Steel.dev Cloud CDP Fleet: Connected
         </span>
-        <span className="text-zinc-300 dark:text-zinc-700">|</span>
-        <span className="text-[11px] font-mono uppercase text-zinc-500 tracking-wider">
+        <span className="text-zinc-600">|</span>
+        <span className="text-[11px] font-mono uppercase text-zinc-400 tracking-wider">
           Zero-Click Engine
         </span>
       </div>
 
-      {/* Main Hero Display Typography */}
-      <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight text-black dark:text-white font-sans max-w-4xl leading-[1.08] mb-6">
-        Autonomous <span className="underline decoration-zinc-300 dark:decoration-zinc-700 decoration-wavy decoration-2">Zero-Click</span> Web Execution.
+      {/* 2. Main Hero Headline */}
+      <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white font-sans max-w-4xl leading-[1.06] mb-6">
+        Autonomous <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-200 to-cyan-400">Zero-Click</span> Web Execution.
       </h1>
 
-      {/* Compelling Value Proposition Subtitle */}
-      <p className="text-base sm:text-lg md:text-xl text-zinc-600 dark:text-zinc-400 font-sans max-w-2xl leading-relaxed mb-8">
-        Convert natural language intent into verified <strong className="text-black dark:text-white font-semibold">1-Action Approval Cards</strong> with cryptographic W3C C14N DOM proofs. Bypassing 47 tedious form fields with human-in-the-loop financial safety.
+      <p className="text-base sm:text-lg md:text-xl text-zinc-400 font-sans max-w-2xl leading-relaxed mb-8">
+        Convert natural language intent into cryptographically sealed <strong className="text-white font-semibold">1-Action Approval Cards</strong> with W3C C14N DOM proofs. Bypassing 47 tedious form fields with human-in-the-loop financial safety.
       </p>
 
-      {/* Hero Quick Prompt Bar with Reactive Border Beam */}
-      <div className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-2xl p-2 shadow-lg mb-4 overflow-hidden group">
-        <BorderBeam size={160} colorFrom="#10b981" colorTo="#00f0ff" duration={6} />
-        <div className="relative flex items-center z-10">
+      {/* 3. Reference-Inspired 4-Tile Live Metric HUD Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl w-full mb-8 font-mono text-xs">
+        {/* Metric 1: Cascade Speed */}
+        <div className="p-3 rounded-xl bg-zinc-950/70 border border-emerald-500/30 backdrop-blur-md flex flex-col items-center justify-center text-center shadow-xs">
+          <div className="flex items-center gap-1.5 text-emerald-400 text-[10px] uppercase font-bold tracking-wider mb-1">
+            <Zap className="w-3.5 h-3.5" />
+            <span>Cascade Speed</span>
+          </div>
+          <span className="text-lg md:text-xl font-bold text-white tracking-tight font-mono">
+            450 t/s
+          </span>
+          <span className="text-[9px] text-zinc-500 uppercase mt-0.5">SambaNova SN40L RDU</span>
+        </div>
+
+        {/* Metric 2: Merkle Proof Seal */}
+        <div className="p-3 rounded-xl bg-zinc-950/70 border border-emerald-500/30 backdrop-blur-md flex flex-col items-center justify-center text-center shadow-xs">
+          <div className="flex items-center gap-1.5 text-emerald-400 text-[10px] uppercase font-bold tracking-wider mb-1">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Integrity Seal</span>
+          </div>
+          <span className="text-lg md:text-xl font-bold text-white tracking-tight font-mono">
+            W3C C14N
+          </span>
+          <span className="text-[9px] text-zinc-500 uppercase mt-0.5">4-Leaf SHA-256 Proof</span>
+        </div>
+
+        {/* Metric 3: Zero-Click Form Fields */}
+        <div className="p-3 rounded-xl bg-zinc-950/70 border border-cyan-500/30 backdrop-blur-md flex flex-col items-center justify-center text-center shadow-xs">
+          <div className="flex items-center gap-1.5 text-cyan-400 text-[10px] uppercase font-bold tracking-wider mb-1">
+            <Layers className="w-3.5 h-3.5" />
+            <span>Form Automation</span>
+          </div>
+          <span className="text-lg md:text-xl font-bold text-white tracking-tight font-mono">
+            47 → 0
+          </span>
+          <span className="text-[9px] text-zinc-500 uppercase mt-0.5">Zero Manual Fields</span>
+        </div>
+
+        {/* Metric 4: Live Payment Gateway */}
+        <div className="p-3 rounded-xl bg-zinc-950/70 border border-cyan-500/30 backdrop-blur-md flex flex-col items-center justify-center text-center shadow-xs">
+          <div className="flex items-center gap-1.5 text-cyan-400 text-[10px] uppercase font-bold tracking-wider mb-1">
+            <Radio className="w-3.5 h-3.5" />
+            <span>Merchant Gateway</span>
+          </div>
+          <span className="text-lg md:text-xl font-bold text-white tracking-tight font-mono">
+            1-Action
+          </span>
+          <span className="text-[9px] text-zinc-500 uppercase mt-0.5">Armed /pay Portal</span>
+        </div>
+      </div>
+
+      {/* 4. Sleek Cyber Intent Prompt Bar */}
+      <div className="w-full max-w-2xl bg-zinc-950/80 border border-zinc-800 focus-within:border-emerald-500/60 rounded-2xl p-2.5 shadow-[0_0_25px_rgba(16,185,129,0.15)] mb-4 backdrop-blur-md transition-colors">
+        <div className="relative flex items-center">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Instruct GhostBrowser, e.g. Find flight BLR to COK tomorrow under ₹3,500..."
-            className="w-full bg-transparent px-4 py-3 text-sm md:text-base text-black dark:text-white placeholder:text-zinc-400 focus:outline-none font-sans pr-28"
+            className="w-full bg-transparent px-4 py-3 text-sm md:text-base text-white placeholder:text-zinc-500 focus:outline-none font-sans pr-28"
           />
           <div className="absolute right-2 flex items-center gap-1.5">
             <button
               onClick={onMicToggle}
-              className={`p-2 rounded-lg border transition ${
+              className={`p-2 rounded-lg border transition cursor-pointer ${
                 isRecording
-                  ? "bg-red-50 border-red-300 text-red-600 animate-pulse dark:bg-red-950/50"
-                  : "bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-black dark:hover:text-white"
+                  ? "bg-red-950/80 border-red-500 text-red-400 animate-pulse"
+                  : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white"
               }`}
               title="Speak instruction (Deepgram Nova-3)"
             >
@@ -79,7 +135,7 @@ export function HeroSection({
             </button>
             <button
               onClick={() => onExecuteQuery(query)}
-              className="px-4 py-2 rounded-lg bg-black dark:bg-white text-white dark:text-black font-semibold text-xs md:text-sm flex items-center gap-1.5 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition shadow-xs"
+              className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs md:text-sm flex items-center gap-1.5 transition shadow-sm cursor-pointer"
             >
               <span>Execute</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -88,68 +144,41 @@ export function HeroSection({
         </div>
       </div>
 
-      {/* Sample Query Quick-Action Pills */}
-      <div className="flex flex-wrap items-center justify-center gap-2 text-xs mb-10">
-        <span className="text-zinc-400 font-medium">Quick Prompts:</span>
+      {/* Quick Prompts */}
+      <div className="flex flex-wrap items-center justify-center gap-2 text-xs mb-8">
+        <span className="text-zinc-500 font-mono text-[11px] uppercase">Quick Demos:</span>
         <button
           onClick={() => {
             const q = "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner";
             setQuery(q);
             onExecuteQuery(q);
           }}
-          className="px-3 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 text-zinc-700 dark:text-zinc-300 transition shadow-2xs"
+          className="px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 hover:border-emerald-500/60 text-zinc-300 hover:text-emerald-300 transition text-[11px] font-mono cursor-pointer"
         >
-          ✈️ BLR → COK (Meal & Baggage)
+          ✈️ BLR → COK (Meal &amp; Baggage)
         </button>
         <button
           onClick={() => {
-            const q = "Find cheapest morning flight from Delhi to Mumbai tomorrow";
+            const q = "Top-rated Hyderabadi Biryani under ₹350 on Swiggy vs Zomato in 30 mins";
             setQuery(q);
             onExecuteQuery(q);
           }}
-          className="px-3 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 text-zinc-700 dark:text-zinc-300 transition shadow-2xs"
+          className="px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 hover:border-emerald-500/60 text-zinc-300 hover:text-emerald-300 transition text-[11px] font-mono cursor-pointer"
         >
-          ⚡ DEL → BOM (Morning Flight)
+          🍔 Swiggy Biryani (ETA 24m)
         </button>
         <button
           onClick={() => {
-            const q = "Track M3 MacBook Air 16GB price on Amazon vs Flipkart";
+            const q = "Track M3 MacBook Air 16GB under ₹95,000 on Flipkart Assured";
             setQuery(q);
             onExecuteQuery(q);
           }}
-          className="px-3 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 text-zinc-700 dark:text-zinc-300 transition shadow-2xs hidden sm:inline-block"
+          className="px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 hover:border-emerald-500/60 text-zinc-300 hover:text-emerald-300 transition text-[11px] font-mono cursor-pointer hidden sm:inline-block"
         >
-          🛍️ MacBook M3 Arbitrage
+          🛍️ MacBook M3 Sniper (-₹7,000)
         </button>
       </div>
 
-      {/* Swiss Monochromatic Metrics Row */}
-      <div className="grid grid-cols-3 gap-4 sm:gap-8 max-w-xl w-full border-t border-zinc-200 dark:border-zinc-800 pt-6 text-center">
-        <div>
-          <div className="text-xl sm:text-3xl font-bold font-sans text-black dark:text-white tracking-tight">
-            47 → 0
-          </div>
-          <div className="text-[11px] font-mono uppercase text-zinc-500 tracking-wider mt-0.5">
-            Form Fields Filled
-          </div>
-        </div>
-        <div>
-          <div className="text-xl sm:text-3xl font-bold font-sans text-black dark:text-white tracking-tight">
-            2.4s
-          </div>
-          <div className="text-[11px] font-mono uppercase text-zinc-500 tracking-wider mt-0.5">
-            Average Latency
-          </div>
-        </div>
-        <div>
-          <div className="text-xl sm:text-3xl font-bold font-sans text-black dark:text-white tracking-tight">
-            100%
-          </div>
-          <div className="text-[11px] font-mono uppercase text-zinc-500 tracking-wider mt-0.5">
-            DOM Merkle Proof
-          </div>
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }

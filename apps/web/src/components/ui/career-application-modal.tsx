@@ -27,6 +27,8 @@ interface CareerApplicationModalProps {
   companyName?: string;
   salaryRange?: string;
   merkleRoot?: string;
+  job?: any;
+  applyUrl?: string;
 }
 
 export function CareerApplicationModal({
@@ -35,12 +37,19 @@ export function CareerApplicationModal({
   jobTitle = 'Staff AI Engineer — Autonomous Systems',
   companyName = 'Anthropic / Frontier AI Lab',
   salaryRange = '$185,000 - $240,000 / yr',
-  merkleRoot = '9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f'
+  merkleRoot = '9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f',
+  job,
+  applyUrl
 }: CareerApplicationModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [confirmationToken, setConfirmationToken] = useState('GH-APP-984210');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const effectiveTitle = job?.title || jobTitle;
+  const effectiveCompany = job?.company_name || companyName;
+  const effectiveApplyUrl = job?.absolute_url || applyUrl || 'https://boards.greenhouse.io';
+  const effectiveLocation = job?.location || 'San Francisco, CA / Remote';
 
   if (!isOpen) return null;
 
@@ -52,17 +61,17 @@ export function CareerApplicationModal({
     { label: 'LinkedIn Profile', key: 'linkedin_profile', value: 'https://linkedin.com/in/vivekd' },
     { label: 'GitHub Profile', key: 'github_profile', value: 'https://github.com/DvivekD' },
     { label: 'Portfolio URL', key: 'portfolio_url', value: 'https://ghostbrowse-blush.vercel.app' },
-    { label: 'Location & Work Auth', key: 'work_authorization', value: 'Authorized to work in US / Remote (No sponsorship required)' },
+    { label: 'Location & Work Auth', key: 'work_authorization', value: `Targeting: ${effectiveLocation} (Authorized to work in US / Remote)` },
     { label: 'Years of Experience', key: 'experience_years', value: '7+ Years (Distributed Systems & Agentic AI)' },
     { label: 'Current Role & Stack', key: 'current_stack', value: 'Principal Agentic Engineer (Rust, TypeScript, Python, CDP, WebGL)' },
     { label: 'Desired Compensation', key: 'desired_salary', value: '$210,000 / yr + Equity (0.10%)' },
     { label: 'Screening Answer (Architecture)', key: 'screening_q1', value: 'Architected GhostBrowser zero-click autonomous execution engine bypassing 47 manual inputs with cryptographic W3C C14N Merkle proof validation.' }
   ];
 
-  const tailoredResumeMarkdown = `# Vivek D. — Staff AI Engineer (Autonomous Systems)
+  const tailoredResumeMarkdown = `# Vivek D. — ${effectiveTitle}
+**Target Company**: ${effectiveCompany} | **Location**: ${effectiveLocation}
 **Email**: vivek.d@ghostbrowser.dev | **Phone**: +91 98765 43210
 **GitHub**: https://github.com/DvivekD | **Portfolio**: https://ghostbrowse-blush.vercel.app
-**Location**: San Francisco, CA / Remote
 
 ---
 
@@ -87,7 +96,7 @@ Staff AI Systems Engineer specializing in autonomous zero-click web agents, head
 
 ---
 
-## Target Role Alignment: ${jobTitle}
+## Target Role Alignment: ${effectiveTitle} @ ${effectiveCompany}
 - **Compensation Expectation**: ${salaryRange}
 - **Availability**: Immediate / 2 Weeks Notice
 - **Verified Merkle Hash**: ${merkleRoot}
@@ -192,17 +201,17 @@ Staff AI Systems Engineer specializing in autonomous zero-click web agents, head
                   VERIFIED JOB DISPATCH &bull; GREENHOUSE.IO
                 </span>
                 <h4 className="text-base sm:text-lg font-bold font-sans text-white mt-0.5">
-                  {jobTitle}
+                  {effectiveTitle}
                 </h4>
                 <p className="text-xs text-zinc-400 font-sans mt-0.5 flex items-center gap-2">
                   <span className="flex items-center gap-1">
                     <Building className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>{companyName}</span>
+                    <span>{effectiveCompany}</span>
                   </span>
                   <span>&bull;</span>
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>San Francisco / Remote</span>
+                    <span>{effectiveLocation}</span>
                   </span>
                 </p>
               </div>
@@ -321,6 +330,15 @@ Staff AI Systems Engineer specializing in autonomous zero-click web agents, head
             </div>
 
             <div className="flex items-center justify-between px-1 text-[11px] text-zinc-500 font-sans">
+              <a
+                href={effectiveApplyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-400 hover:text-emerald-400 flex items-center gap-1 transition"
+              >
+                <span>Open {effectiveCompany} on Greenhouse</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
               <button
                 onClick={handleDownloadPayloadJson}
                 className="text-zinc-400 hover:text-emerald-400 flex items-center gap-1 transition underline underline-offset-2"
@@ -328,7 +346,6 @@ Staff AI Systems Engineer specializing in autonomous zero-click web agents, head
                 <span>Export ATS Form JSON Bundle</span>
                 <ExternalLink className="w-3 h-3" />
               </button>
-              <span>Zero-Click Human-in-the-Loop Safe</span>
             </div>
           </div>
         </div>

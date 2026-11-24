@@ -52,7 +52,7 @@ export function BentoGridItem({
   return (
     <div
       className={cn(
-        "group/bento relative rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col justify-between overflow-hidden shadow-xs hover:border-zinc-400 dark:hover:border-zinc-600 transition-all duration-300",
+        "group/bento relative rounded-2xl bg-zinc-950/75 border border-zinc-800/80 backdrop-blur-md p-6 flex flex-col justify-between overflow-hidden shadow-xl hover:border-emerald-500/40 transition-all duration-300",
         colSpanClasses[colSpan],
         className
       )}
@@ -63,25 +63,25 @@ export function BentoGridItem({
       <div className="flex flex-col gap-2 relative z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {icon && <div className="text-zinc-800 dark:text-zinc-200">{icon}</div>}
-            <h4 className="font-sans font-bold text-base md:text-lg text-black dark:text-white tracking-tight">
+            {icon && <div className="text-zinc-200">{icon}</div>}
+            <h4 className="font-sans font-bold text-base md:text-lg text-white tracking-tight">
               {title}
             </h4>
           </div>
           {badge && (
-            <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+            <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-emerald-400 font-semibold">
               {badge}
             </span>
           )}
         </div>
 
         {subtitle && (
-          <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          <div className="text-xs font-medium text-zinc-400">
             {subtitle}
           </div>
         )}
 
-        <p className="font-sans text-xs md:text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed mt-1">
+        <p className="font-sans text-xs md:text-sm text-zinc-300 leading-relaxed mt-1">
           {description}
         </p>
 
@@ -89,7 +89,7 @@ export function BentoGridItem({
       </div>
 
       {/* Subtle corner light accent */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-radial from-zinc-200/40 dark:from-zinc-700/20 to-transparent pointer-events-none rounded-bl-full" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-radial from-emerald-500/10 via-cyan-500/5 to-transparent pointer-events-none rounded-bl-full" />
     </div>
   );
 }
