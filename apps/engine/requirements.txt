@@ -7,4 +7,5 @@ patchright>=1.49.0
 playwright-stealth>=1.0.6
 httpx>=0.28.0
 python-dotenv>=1.0.1
+python-multipart>=0.0.18
 pillow>=11.0.0

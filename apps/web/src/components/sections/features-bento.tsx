@@ -5,6 +5,7 @@ import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
 import { Cpu, ShieldCheck, Globe, CheckCircle2, Zap, Lock, Terminal, Activity } from "lucide-react";
 import { CryptographicCube } from "@/components/ui/cryptographic-cube";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { ParticleMesh } from "@/components/ui/particle-mesh";
 
 export function FeaturesBentoSection() {
   return (
@@ -58,7 +59,7 @@ export function FeaturesBentoSection() {
           }
         />
 
-        {/* Tile 2: Cryptographic Merkle Engine with Interactive 3D Cube */}
+        {/* Tile 2: Cryptographic Merkle Engine with Interactive 3D Cube & Border Beam */}
         <BentoGridItem
           colSpan={4}
           title="Cryptographic Proof Engine"
@@ -74,9 +75,11 @@ export function FeaturesBentoSection() {
               </span>
             </div>
           }
-        />
+        >
+          <BorderBeam size={180} duration={6} colorFrom="#10b981" colorTo="#00f0ff" />
+        </BentoGridItem>
 
-        {/* Tile 3: Anti-Bot Stealth Fleet */}
+        {/* Tile 3: Anti-Bot Stealth Fleet with Particle Mesh Background */}
         <BentoGridItem
           colSpan={4}
           title="Steel.dev Cloud CDP Fleet"
@@ -85,16 +88,17 @@ export function FeaturesBentoSection() {
           icon={<Globe className="w-5 h-5 text-blue-500" />}
           description="High-concurrency headless Chromium contexts connected via Chrome DevTools Protocol WebSocket. Bypasses Cloudflare, DataDome, and CAPTCHAs with human cursor emulation."
           header={
-            <div className="w-full p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-1.5 font-mono text-[11px]">
-              <div className="flex items-center justify-between">
+            <div className="w-full p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-1.5 font-mono text-[11px] relative overflow-hidden">
+              <ParticleMesh particleCount={18} className="pointer-events-none absolute inset-0 z-0 opacity-30 dark:opacity-40" />
+              <div className="relative z-10 flex items-center justify-between">
                 <span className="text-zinc-500">CDP WebSocket:</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-bold">CONNECTED</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="relative z-10 flex items-center justify-between">
                 <span className="text-zinc-500">Worker Concurrency:</span>
                 <span className="text-black dark:text-white font-bold">3 Contexts</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="relative z-10 flex items-center justify-between">
                 <span className="text-zinc-500">Fingerprint Spoof:</span>
                 <span className="text-black dark:text-white font-bold">macOS Chromium 133</span>
               </div>

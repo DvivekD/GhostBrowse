@@ -24,6 +24,8 @@ import {
   Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BorderBeam } from "@/components/ui/border-beam";
+import { ParticleMesh } from "@/components/ui/particle-mesh";
 
 interface PhaseData {
   id: number;
@@ -373,9 +375,10 @@ export function ScrollDrivenDemo() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -15 }}
                     transition={{ duration: 0.3 }}
-                    className="flex flex-col gap-4"
+                    className="flex flex-col gap-4 relative overflow-hidden"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                    <ParticleMesh particleCount={16} className="pointer-events-none absolute inset-0 z-0 opacity-20 dark:opacity-30" />
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3">
                       <div>
                         <span className="text-xs font-mono font-bold text-cyan-500 uppercase tracking-wider">
                           Phase 03 // Steel.dev Cloud Stealth Fleet
@@ -513,8 +516,9 @@ export function ScrollDrivenDemo() {
                     </div>
 
                     {/* Right: Polymorphic 1-Action Approval Card (6 cols) */}
-                    <div className="lg:col-span-6 p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-md flex flex-col justify-between gap-3">
-                      <div>
+                    <div className="lg:col-span-6 p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-md flex flex-col justify-between gap-3 relative overflow-hidden">
+                      <BorderBeam size={180} duration={6} colorFrom="#10b981" colorTo="#00f0ff" />
+                      <div className="relative z-10">
                         <div className="flex items-center justify-between text-xs font-mono">
                           <span className="text-cyan-500 font-bold uppercase tracking-wider">
                             1-Action Approval Card

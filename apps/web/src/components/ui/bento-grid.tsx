@@ -29,6 +29,7 @@ export function BentoGridItem({
   icon,
   badge,
   colSpan = 6,
+  children,
 }: {
   className?: string;
   title: string | React.ReactNode;
@@ -38,6 +39,7 @@ export function BentoGridItem({
   icon?: React.ReactNode;
   badge?: string | React.ReactNode;
   colSpan?: 3 | 4 | 6 | 8 | 12;
+  children?: React.ReactNode;
 }) {
   const colSpanClasses = {
     3: "md:col-span-3",
@@ -82,6 +84,8 @@ export function BentoGridItem({
         <p className="font-sans text-xs md:text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed mt-1">
           {description}
         </p>
+
+        {children}
       </div>
 
       {/* Subtle corner light accent */}
