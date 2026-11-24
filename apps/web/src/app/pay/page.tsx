@@ -317,6 +317,100 @@ function PayContent() {
     });
   };
 
+  const handleDownloadBoardingPass = () => {
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>IndiGo Airlines - Boarding Pass - ${pnrNumber}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f4f4f5; margin: 0; padding: 40px; color: #09090b; }
+    .pass { max-width: 680px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #e4e4e7; }
+    .header { background: #001e62; color: #fff; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; }
+    .airline { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+    .badge { font-family: monospace; font-size: 12px; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 9999px; }
+    .route { display: flex; justify-content: space-between; align-items: center; padding: 32px; border-bottom: 2px dashed #e4e4e7; }
+    .city { font-size: 36px; font-weight: 900; }
+    .sub { font-size: 13px; color: #71717a; text-transform: uppercase; margin-top: 4px; }
+    .plane { font-size: 24px; color: #001e62; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 32px; background: #fafafa; }
+    .label { font-size: 11px; color: #71717a; text-transform: uppercase; font-family: monospace; }
+    .val { font-size: 16px; font-weight: 700; margin-top: 4px; }
+    .seat { font-size: 28px; color: #10b981; }
+    .footer { padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e4e4e7; }
+    .barcode { font-family: monospace; font-size: 12px; letter-spacing: 4px; }
+  </style>
+</head>
+<body>
+  <div class="pass">
+    <div class="header">
+      <div class="airline">IndiGo 6E-243</div>
+      <div class="badge">ELECTRONIC BOARDING PASS • VERIFIED</div>
+    </div>
+    <div class="route">
+      <div>
+        <div class="city">BLR</div>
+        <div class="sub">Bengaluru (BLR) T2</div>
+      </div>
+      <div class="plane">✈ 1h 15m</div>
+      <div style="text-align: right;">
+        <div class="city">COK</div>
+        <div class="sub">Cochin (COK)</div>
+      </div>
+    </div>
+    <div class="grid">
+      <div>
+        <div class="label">Passenger</div>
+        <div class="val">${displayPassenger}</div>
+      </div>
+      <div>
+        <div class="label">Flight Number</div>
+        <div class="val">6E-2433</div>
+      </div>
+      <div>
+        <div class="label">Date & Time</div>
+        <div class="val">06:15 AM Tomorrow</div>
+      </div>
+      <div>
+        <div class="label">Boarding Gate</div>
+        <div class="val">Gate 18B</div>
+      </div>
+      <div>
+        <div class="label">Seat Number</div>
+        <div class="val seat">14A</div>
+      </div>
+      <div>
+        <div class="label">Cabin Class</div>
+        <div class="val">Economy (Forward)</div>
+      </div>
+      <div>
+        <div class="label">Baggage</div>
+        <div class="val">15kg + 7kg Included</div>
+      </div>
+      <div>
+        <div class="label">Booking PNR</div>
+        <div class="val" style="color: #001e62;">${pnrNumber}</div>
+      </div>
+    </div>
+    <div class="footer">
+      <div>
+        <div class="label">Cryptographic Proof Hash</div>
+        <div style="font-family: monospace; font-size: 10px; color: #10b981;">0x9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b</div>
+      </div>
+      <div class="barcode">||| | |||| ||| ||||| || |||</div>
+    </div>
+  </div>
+</body>
+</html>`;
+    const blob = new Blob([htmlContent], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `IndiGo_Boarding_Pass_${pnrNumber}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleDownloadInvoice = () => {
     const invoiceData = {
       ghostbrowser_version: "v1.0 Zero-Click Autonomous Engine",
@@ -487,6 +581,208 @@ function PayContent() {
                 <span className="break-all font-mono">a0e7c84c04cd88de1a6d604cc754b7bf7096fd0ace771e9a328da2d544ac461b</span>
               </div>
             </div>
+
+            {/* DOMAIN SPECIFIC POST-PAYMENT LIVE TRACKER & ARTIFACTS */}
+            {selectedDomain === "travel" && (
+              <div className="w-full max-w-xl p-5 rounded-xl bg-white dark:bg-zinc-950 border-2 border-emerald-500/30 text-left font-sans text-xs flex flex-col gap-4 shadow-lg">
+                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Plane className="w-4 h-4 text-emerald-500" />
+                    <span className="font-bold text-sm text-black dark:text-white">IndiGo 6E-243 Official Boarding Pass</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    SEAT 14A CONFIRMED
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-zinc-50 dark:bg-zinc-900/60 p-3.5 rounded-lg font-mono text-[11px]">
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">ROUTE</span>
+                    <span className="font-bold text-black dark:text-white">BLR → COK</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">DEPARTURE</span>
+                    <span className="font-bold text-black dark:text-white">06:15 AM</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">TERMINAL / GATE</span>
+                    <span className="font-bold text-emerald-500">T2 • Gate 18B</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">DIGIYATRA</span>
+                    <span className="font-bold text-black dark:text-white">LINKED (042)</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleDownloadBoardingPass}
+                  className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition flex items-center justify-center gap-2 shadow-xs cursor-pointer font-sans"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Official Boarding Pass (.html / Apple Wallet Ready)</span>
+                </button>
+              </div>
+            )}
+
+            {selectedDomain === "food" && (
+              <div className="w-full max-w-xl p-5 rounded-xl bg-white dark:bg-zinc-950 border-2 border-emerald-500/30 text-left font-sans text-xs flex flex-col gap-4 shadow-lg">
+                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Utensils className="w-4 h-4 text-emerald-500" />
+                    <span className="font-bold text-sm text-black dark:text-white">Live Kitchen Dispatch &amp; Delivery Tracking</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    <span>ETA: 21 Mins</span>
+                  </div>
+                </div>
+
+                {/* Courier Card & Security Handover OTP */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center font-bold text-black dark:text-white">
+                      RK
+                    </div>
+                    <div>
+                      <div className="font-semibold text-black dark:text-white">Ramesh K. (EV Eco-Courier)</div>
+                      <div className="text-[11px] text-zinc-500">Rating 4.9★ &bull; +91 98450 12345</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-mono text-zinc-400 block">HANDOVER PIN</span>
+                    <span className="font-mono text-base font-extrabold text-emerald-500">4829</span>
+                  </div>
+                </div>
+
+                {/* 4-Stage Progress Timeline */}
+                <div className="space-y-2 pt-1 font-mono text-[11px]">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Order Verified &amp; Payment Settled</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Kitchen: Cooking Butter Chicken &amp; 2 Garlic Naans</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-black dark:text-white font-bold animate-pulse">
+                    <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block" />
+                    <span>Courier Assigned &bull; Heading to Meghana Foods</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 inline-block" />
+                    <span>Delivering to Flat 402, Greenfield Apts, Indiranagar</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedDomain === "shopping" && (
+              <div className="w-full max-w-xl p-5 rounded-xl bg-white dark:bg-zinc-950 border-2 border-emerald-500/30 text-left font-sans text-xs flex flex-col gap-4 shadow-lg">
+                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="w-4 h-4 text-emerald-500" />
+                    <span className="font-bold text-sm text-black dark:text-white">BlueDart Priority Express Tracking</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    AWB: BD-849201948IN
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 bg-zinc-50 dark:bg-zinc-900/60 p-3.5 rounded-lg font-mono text-[11px]">
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">ESTIMATED DELIVERY</span>
+                    <span className="font-bold text-black dark:text-white">Tomorrow by 10:30 AM</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">DELIVERY SECURITY PIN</span>
+                    <span className="font-bold text-emerald-500 text-sm">7291</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">ORIGIN HUB</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">Bhiwandi Master Center</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">COURIER CARRIER</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">BlueDart Aviation Air</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedDomain === "research" && (
+              <div className="w-full max-w-xl p-5 rounded-xl bg-white dark:bg-zinc-950 border-2 border-sky-500/30 text-left font-sans text-xs flex flex-col gap-4 shadow-lg">
+                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-sky-500" />
+                    <span className="font-bold text-sm text-black dark:text-white">arXiv Open Access Academic Synthesis</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                    arXiv:2501.12948 [cs.AI]
+                  </span>
+                </div>
+
+                <p className="text-xs text-zinc-600 dark:text-zinc-300 font-sans">
+                  DeepSeek-R1 core RL distillation framework synthesized with 79.8% AIME pass@1 and MATH-500 97.3%. Open access verified with zero paywall.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <a
+                    href="https://arxiv.org/pdf/2501.12948.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download arXiv PDF (34pp)</span>
+                    <ExternalLink className="w-3 h-3 text-sky-200" />
+                  </a>
+                  <button
+                    onClick={() => {
+                      const bib = `@article{deepseek2025r1, title={DeepSeek-R1: Incentivizing Reasoning in LLMs}, year={2025}, eprint={2501.12948}}`;
+                      navigator.clipboard.writeText(bib);
+                      alert("BibTeX copied to clipboard!");
+                    }}
+                    className="py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 transition"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy Canonical BibTeX</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedDomain === "career" && (
+              <div className="w-full max-w-xl p-5 rounded-xl bg-white dark:bg-zinc-950 border-2 border-emerald-500/30 text-left font-sans text-xs flex flex-col gap-4 shadow-lg">
+                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-emerald-500" />
+                    <span className="font-bold text-sm text-black dark:text-white">Greenhouse.io ATS Dispatch Confirmation</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    APP ID: GH-APP-984210
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 bg-zinc-50 dark:bg-zinc-900/60 p-3.5 rounded-lg font-mono text-[11px]">
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">CANDIDATE</span>
+                    <span className="font-bold text-black dark:text-white">Vivek D.</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">ROLE APPLIED</span>
+                    <span className="font-bold text-black dark:text-white">Staff AI Engineer</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">TARGET ORGANIZATION</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">Anthropic / Frontier AI Lab</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px]">FIELDS VERIFIED</span>
+                    <span className="text-emerald-500 font-bold">32/32 Inputs Validated</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex flex-wrap items-center justify-center gap-3">

@@ -414,10 +414,10 @@ class UniversalWorker:
             in_stock=item_data["stock"],
             delivery_eta=item_data["eta"],
             product_url=target_url,
-            deep_link=item_data["deep_link"],
+            deep_link=f"/pay?domain=shopping&title={quote_plus(item_data['product'])}&price={item_data['price']}&merchant={quote_plus(self.site_name)}",
             specs={"coupon": item_data["coupon"], "bank_offer": item_data["bank_offer"]},
             source_url=target_url,
-            booking_deep_link=item_data["deep_link"],
+            booking_deep_link=f"/pay?domain=shopping&title={quote_plus(item_data['product'])}&price={item_data['price']}&merchant={quote_plus(self.site_name)}",
             merkle_proof=merkle_proof,
             site_name=self.site_name,
         )
@@ -548,9 +548,9 @@ class UniversalWorker:
             delivery_time_mins=dish_data["eta_mins"],
             delivery_fee_inr=0.0,
             coupon_applied=dish_data["offer"],
-            order_deep_link=dish_data["order_link"],
+            order_deep_link=f"/pay?domain=food&title={quote_plus(dish_data['dish'])}&price={dish_data['price']}&merchant={quote_plus(dish_data['restaurant'])}",
             source_url=target_url,
-            booking_deep_link=dish_data["order_link"],
+            booking_deep_link=f"/pay?domain=food&title={quote_plus(dish_data['dish'])}&price={dish_data['price']}&merchant={quote_plus(dish_data['restaurant'])}",
             merkle_proof=merkle_proof,
             site_name=self.site_name,
         )
@@ -782,7 +782,7 @@ class UniversalWorker:
             meal_included=meal_included,
             baggage_allowance="7kg Cabin + 15kg Check-in (Included)",
             source_url=target_url,
-            booking_deep_link=f"https://www.google.com/travel/flights?q=flights+from+{origin}+to+{destination}",
+            booking_deep_link=f"/pay?domain=travel&title={quote_plus(airline)}&price={price}&merchant=IndiGo%20Airlines",
             merkle_proof=merkle_proof,
             site_name=self.site_name,
         )

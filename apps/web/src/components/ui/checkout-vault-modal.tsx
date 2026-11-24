@@ -874,6 +874,43 @@ export function CheckoutVaultModal({ isOpen, onClose, data }: CheckoutVaultModal
                 </div>
               </div>
 
+              {/* Live Domain Status Banner */}
+              {data.domain === 'travel' && (
+                <div className="w-full rounded-xl bg-emerald-950/40 border border-emerald-500/30 p-3 text-left font-mono text-[11px] space-y-1">
+                  <div className="flex items-center justify-between text-emerald-400 font-bold">
+                    <span>INDIGO 6E-2433 • SEAT 14A</span>
+                    <span>GATE 18B (T2)</span>
+                  </div>
+                  <div className="text-zinc-400 text-[10px]">
+                    Departure: 06:15 AM Tomorrow • Digiyatra Sequence #042 Linked
+                  </div>
+                </div>
+              )}
+
+              {data.domain === 'food' && (
+                <div className="w-full rounded-xl bg-emerald-950/40 border border-emerald-500/30 p-3 text-left font-mono text-[11px] space-y-1">
+                  <div className="flex items-center justify-between text-emerald-400 font-bold">
+                    <span>COURIER ASSIGNED: RAMESH K.</span>
+                    <span className="text-amber-400">OTP: 4829</span>
+                  </div>
+                  <div className="text-zinc-400 text-[10px]">
+                    Meghana Foods &bull; In Kitchen &bull; ETA 21 Mins &bull; +91 98450 12345
+                  </div>
+                </div>
+              )}
+
+              {data.domain === 'shopping' && (
+                <div className="w-full rounded-xl bg-emerald-950/40 border border-emerald-500/30 p-3 text-left font-mono text-[11px] space-y-1">
+                  <div className="flex items-center justify-between text-emerald-400 font-bold">
+                    <span>BLUEDART EXPRESS AWB</span>
+                    <span className="text-amber-400">PIN: 7291</span>
+                  </div>
+                  <div className="text-zinc-400 text-[10px]">
+                    AWB: BD-849201948IN &bull; Delivery Tomorrow by 10:30 AM
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons for Step 3: Direct Live Merchant Handoff */}
               <div className="w-full space-y-2 pt-2">
                 {/* Prominent Primary Button: Launch Dedicated Merchant Pay Portal */}
@@ -886,19 +923,6 @@ export function CheckoutVaultModal({ isOpen, onClose, data }: CheckoutVaultModal
                   <span>Launch Dedicated Merchant Pay Portal (/pay)</span>
                   <ExternalLink className="w-4 h-4 text-emerald-600" />
                 </a>
-
-                {/* Secondary Button: Raw merchant store page */}
-                {directActionUrl && (
-                  <a
-                    href={directActionUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-2 rounded-lg bg-zinc-900/60 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-[11px] flex items-center justify-center gap-1.5 transition font-sans"
-                  >
-                    <span>Open raw merchant store page (Requires manual login)</span>
-                    <ExternalLink className="w-3 h-3 text-zinc-500" />
-                  </a>
-                )}
 
                 {/* Secondary Actions: Download JSON & Done */}
                 <div className="grid grid-cols-2 gap-2">

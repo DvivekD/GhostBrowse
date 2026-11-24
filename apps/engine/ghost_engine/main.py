@@ -250,8 +250,8 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
                         price_inr=2850.0,
                         meal_included=True,
                         baggage_allowance="7kg Cabin + 15kg Check-in (Included)",
-                        source_url="https://www.google.com/travel/flights",
-                        booking_deep_link="https://www.google.com/travel/flights",
+                        source_url="https://ghostbrowse-blush.vercel.app/pay?domain=travel",
+                        booking_deep_link="/pay?domain=travel&title=IndiGo%206E-243&price=2850&merchant=IndiGo%20Airlines",
                         merkle_proof=mock_proof
                     )
                 ]

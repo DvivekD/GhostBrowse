@@ -17,11 +17,15 @@ import {
   Sparkles,
   Lock,
   ExternalLink,
+  Download,
+  FileText,
 } from "lucide-react";
 import { MerkleModal, DOMProofPayload } from "@/components/ui/merkle-modal";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/three-d-card";
 import { CheckoutVaultModal, CheckoutWorkflowData } from "@/components/ui/checkout-vault-modal";
+import { ResearchSynthesisModal } from "@/components/ui/research-synthesis-modal";
+import { CareerApplicationModal } from "@/components/ui/career-application-modal";
 
 export interface WorkerStatus {
   worker_id: string;
@@ -187,6 +191,8 @@ export function CommandCenter({
   const [showCheckoutVault, setShowCheckoutVault] = useState(false);
   const [checkoutVaultData, setCheckoutVaultData] = useState<CheckoutWorkflowData | null>(null);
   const [merkleVerificationStatus, setMerkleVerificationStatus] = useState<"verifying" | "verified" | "tampered">("verified");
+  const [showResearchModal, setShowResearchModal] = useState(false);
+  const [showCareerModal, setShowCareerModal] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -825,6 +831,8 @@ export function CommandCenter({
   const handleOpenCheckoutVault = () => {
     if (!approvalCard || !approvalCard.best_option) return;
 
+    const directPayUrl = `/pay?domain=${approvalCard.domain}&title=${encodeURIComponent(approvalCard.best_option.title || '')}&price=${approvalCard.best_option.price_number || 0}&merchant=${encodeURIComponent(approvalCard.best_option.merchant_name || '')}`;
+
     setCheckoutVaultData({
       domain: approvalCard.domain,
       title: approvalCard.best_option.title || "Verified Reservation",
@@ -833,8 +841,8 @@ export function CommandCenter({
       priceNumber: approvalCard.best_option.price_number || 0,
       savingsFormatted: approvalCard.best_option.savings_formatted,
       merchantName: approvalCard.best_option.merchant_name || "Verified Merchant",
-      merchantUrl: approvalCard.best_option.merchant_url || "/pay",
-      directBookingUrl: approvalCard.best_option.direct_booking_url || approvalCard.best_option.merchant_url || "/pay",
+      merchantUrl: directPayUrl,
+      directBookingUrl: directPayUrl,
       merkleRoot: approvalCard.dom_proof?.merkle_root || "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
       details: approvalCard.best_option.specs || []
     });
@@ -1150,15 +1158,78 @@ export function CommandCenter({
                             <span>Vault ({approvalCard.best_option?.price_formatted || "Locked"})</span>
                           </button>
                           <a
-                            href={approvalCard.best_option?.direct_booking_url || "/pay"}
+                            href={`/pay?domain=${approvalCard.domain}&title=${encodeURIComponent(approvalCard.best_option?.title || '')}&price=${approvalCard.best_option?.price_number || 0}&merchant=${encodeURIComponent(approvalCard.best_option?.merchant_name || '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
                           >
                             <ExternalLink className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>Merchant /pay</span>
+                            <span>Merchant Pay (/pay)</span>
                           </a>
                         </div>
+                      </div>
+                    ) : approvalCard.domain === "research" ? (
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => setShowResearchModal(true)}
+                          className="w-full py-3.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs md:text-sm tracking-wide transition shadow-sm flex items-center justify-center gap-2 font-sans"
+                        >
+                          <BookOpen className="w-4 h-4" />
+                          <span>View Synthesized Research Report & Mathematical Proofs</span>
+                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <a
+                            href="https://arxiv.org/pdf/2501.12948.pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
+                          >
+                            <Download className="w-3.5 h-3.5 text-sky-400" />
+                            <span>Download arXiv PDF (34pp)</span>
+                            <ExternalLink className="w-3 h-3 text-zinc-500" />
+                          </a>
+                          <button
+                            onClick={() => setShowResearchModal(true)}
+                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Export Markdown (.md)</span>
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 text-center font-sans">
+                          Open Access verified via arXiv API &bull; Zero subscription paywall.
+                        </p>
+                      </div>
+                    ) : approvalCard.domain === "career" ? (
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => setShowCareerModal(true)}
+                          className="w-full py-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs md:text-sm tracking-wide transition shadow-sm flex items-center justify-center gap-2 font-sans"
+                        >
+                          <Briefcase className="w-4 h-4" />
+                          <span>Inspect 32 ATS Inputs & 1-Click Submit</span>
+                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <button
+                            onClick={() => setShowCareerModal(true)}
+                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
+                          >
+                            <Download className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Download Tailored Resume</span>
+                          </button>
+                          <a
+                            href="https://boards.greenhouse.io"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 text-zinc-500" />
+                            <span>Greenhouse Portal</span>
+                          </a>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 text-center font-sans">
+                          Pre-populated 32 application fields from resume &bull; Zero manual typing.
+                        </p>
                       </div>
                     ) : (
                       <div className="flex flex-col gap-2">
@@ -1170,7 +1241,7 @@ export function CommandCenter({
                           <span>{approvalCard.approval_button_text}</span>
                         </button>
                         <a
-                          href={approvalCard.best_option?.direct_booking_url || "/pay"}
+                          href={`/pay?domain=${approvalCard.domain}&title=${encodeURIComponent(approvalCard.best_option?.title || '')}&price=${approvalCard.best_option?.price_number || 0}&merchant=${encodeURIComponent(approvalCard.best_option?.merchant_name || '')}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="w-full py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-black dark:hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-800 font-sans"
@@ -1218,6 +1289,18 @@ export function CommandCenter({
         isOpen={showCheckoutVault}
         onClose={() => setShowCheckoutVault(false)}
         data={checkoutVaultData}
+      />
+
+      {/* Synthesized Research & Mathematical Proofs Modal */}
+      <ResearchSynthesisModal
+        isOpen={showResearchModal}
+        onClose={() => setShowResearchModal(false)}
+      />
+
+      {/* 32 ATS Inputs & One-Click Job Application Modal */}
+      <CareerApplicationModal
+        isOpen={showCareerModal}
+        onClose={() => setShowCareerModal(false)}
       />
     </div>
   );

@@ -37,12 +37,22 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
     // Responsive Distance and Scale calculation
     const updateScalingAndDistance = (w: number, h: number) => {
       const asp = w / h;
-      if (asp < 1.0) {
-        worldGroup.scale.set(0.68, 0.68, 0.68);
+      if (asp < 0.75) {
+        // Narrow mobile portrait (e.g. iPhone)
+        worldGroup.scale.set(0.52, 0.52, 0.52);
         camera.position.set(0, 0, 5.0);
+      } else if (asp < 1.0) {
+        // Mobile portrait / tablet narrow
+        worldGroup.scale.set(0.60, 0.60, 0.60);
+        camera.position.set(0, 0, 4.9);
+      } else if (asp < 1.3) {
+        // Square or small desktop
+        worldGroup.scale.set(0.78, 0.78, 0.78);
+        camera.position.set(0, 0, 5.2);
       } else {
-        worldGroup.scale.set(1.0, 1.0, 1.0);
-        camera.position.set(0, 0, 5.4);
+        // Desktop widescreen
+        worldGroup.scale.set(0.96, 0.96, 0.96);
+        camera.position.set(0, 0, 5.2);
       }
       camera.aspect = asp;
       camera.updateProjectionMatrix();
@@ -286,6 +296,8 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
       const texture = new THREE.CanvasTexture(canvas);
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.needsUpdate = true;
       return texture;
     };
 
@@ -485,7 +497,7 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
       window.addEventListener('deviceorientation', handleDeviceOrientation);
     }
 
-    // Resize Handler with Dynamic Distance Refit
+    // Resize Handler with Dynamic Distance Refit and ResizeObserver
     const handleResize = () => {
       if (!container) return;
       const w = container.clientWidth || 800;
@@ -495,6 +507,20 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
     };
 
     window.addEventListener('resize', handleResize);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const cr = entry.contentRect;
+          if (cr.width > 50 && cr.height > 50) {
+            updateScalingAndDistance(cr.width, cr.height);
+            renderer.setSize(cr.width, cr.height);
+          }
+        }
+      });
+      resizeObserver.observe(container);
+    }
 
     // Animation Loop
     let animationFrameId: number;
@@ -586,6 +612,9 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
         window.removeEventListener('deviceorientation', handleDeviceOrientation);
       }
       window.removeEventListener('resize', handleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       renderer.dispose();
       planeGeo.dispose();
       cdpTex.dispose();
@@ -661,7 +690,7 @@ export function ThreeDIsometricBrowser({ className = '' }: ThreeDIsometricBrowse
       {/* 3D WebGL Canvas Viewport with touch-action */}
       <div
         ref={containerRef}
-        className="relative h-[380px] sm:h-[460px] md:h-[540px] w-full cursor-grab active:cursor-grabbing rounded-xl bg-gradient-to-b from-zinc-950 via-black to-zinc-950 border border-zinc-900 touch-pan-y"
+        className="relative h-[420px] sm:h-[480px] md:h-[540px] w-full cursor-grab active:cursor-grabbing rounded-xl bg-gradient-to-b from-zinc-950 via-black to-zinc-950 border border-zinc-900 touch-pan-y"
       />
 
       {/* Bottom Technical Spec Footer with responsive wrapping */}

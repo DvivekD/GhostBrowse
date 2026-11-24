@@ -539,10 +539,23 @@ Output ONLY valid raw JSON without markdown formatting."""
             if parsed.get("max_price_inr") is None:
                 parsed["max_price_inr"] = 95000.0
         elif parsed_domain == WorkflowDomain.FOOD:
-            parsed.setdefault("dish_name", "Hyderabadi Mutton Biryani")
-            parsed.setdefault("restaurant_name", "Meghana Foods")
+            dish_val = parsed.get("dish_name") or parsed.get("dish") or parsed.get("item")
+            if not dish_val:
+                orig_lower = original_query.lower()
+                if "chicken" in orig_lower or "naan" in orig_lower or "butter" in orig_lower:
+                    dish_val = "Butter Chicken (Boneless) + 2 Butter Garlic Naan"
+                elif "biryani" in orig_lower:
+                    dish_val = "Meghana Special Biryani + Raita"
+                elif "pizza" in orig_lower:
+                    dish_val = "Gourmet Wood-Fired Margherita with Buffalo Mozzarella"
+                elif "burger" in orig_lower:
+                    dish_val = "Double Cheeseburger & Fries"
+                else:
+                    dish_val = "Butter Chicken (Boneless) + 2 Butter Garlic Naan"
+            parsed["dish_name"] = dish_val
+            parsed.setdefault("restaurant_name", "Meghana Foods (Indiranagar)")
             parsed.setdefault("target_sites", ["Swiggy", "Zomato", "Blinkit"])
-            parsed.setdefault("max_delivery_mins", 30)
+            parsed.setdefault("max_delivery_mins", 25)
             if parsed.get("max_price_inr") is None:
                 parsed["max_price_inr"] = 450.0
         elif parsed_domain == WorkflowDomain.RESEARCH:
