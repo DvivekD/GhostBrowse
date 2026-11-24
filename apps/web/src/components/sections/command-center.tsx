@@ -40,6 +40,7 @@ export interface UniversalApprovalPayload {
     subtitle: string;
     merchant_name: string;
     merchant_url: string;
+    direct_booking_url?: string;
     price_formatted: string;
     price_number: number;
     savings_formatted?: string;
@@ -236,10 +237,11 @@ export function CommandCenter({
     setThoughts([`Initiating autonomous instruction: "${q}"`]);
 
     const lowerQ = q.toLowerCase();
-    const isShopping = lowerQ.includes("macbook") || lowerQ.includes("amazon") || lowerQ.includes("flipkart") || lowerQ.includes("laptop") || lowerQ.includes("price") || lowerQ.includes("buy") || lowerQ.includes("deal");
-    const isFood = lowerQ.includes("food") || lowerQ.includes("dinner") || lowerQ.includes("swiggy") || lowerQ.includes("zomato") || lowerQ.includes("chicken") || lowerQ.includes("naan") || lowerQ.includes("biryani") || lowerQ.includes("pizza") || lowerQ.includes("meal");
-    const isResearch = lowerQ.includes("research") || lowerQ.includes("paper") || lowerQ.includes("arxiv") || lowerQ.includes("deepseek") || lowerQ.includes("study") || lowerQ.includes("benchmark") || lowerQ.includes("reasoning");
-    const isCareer = lowerQ.includes("job") || lowerQ.includes("career") || lowerQ.includes("engineer") || lowerQ.includes("greenhouse") || lowerQ.includes("lever") || lowerQ.includes("resume") || lowerQ.includes("apply");
+    const isFlight = lowerQ.includes("flight") || lowerQ.includes("airline") || lowerQ.includes("indigo") || lowerQ.includes("air india") || lowerQ.includes("ticket") || lowerQ.includes("airport") || lowerQ.includes("fly") || lowerQ.includes("travel") || (lowerQ.includes("bangalore") && lowerQ.includes("kochi")) || (lowerQ.includes("delhi") && lowerQ.includes("mumbai"));
+    const isShopping = !isFlight && (lowerQ.includes("macbook") || lowerQ.includes("amazon") || lowerQ.includes("flipkart") || lowerQ.includes("laptop") || lowerQ.includes("price") || lowerQ.includes("buy") || lowerQ.includes("deal") || lowerQ.includes("shopping"));
+    const isFood = !isFlight && (lowerQ.includes("food") || lowerQ.includes("swiggy") || lowerQ.includes("zomato") || lowerQ.includes("chicken") || lowerQ.includes("naan") || lowerQ.includes("biryani") || lowerQ.includes("pizza") || lowerQ.includes("restaurant") || lowerQ.includes("mutton") || (lowerQ.includes("order") && !lowerQ.includes("flight")));
+    const isResearch = !isFlight && (lowerQ.includes("research") || lowerQ.includes("paper") || lowerQ.includes("papers") || lowerQ.includes("arxiv") || lowerQ.includes("deepseek") || lowerQ.includes("study") || lowerQ.includes("benchmark") || lowerQ.includes("reasoning") || lowerQ.includes("scholar"));
+    const isCareer = !isFlight && (lowerQ.includes("job") || lowerQ.includes("jobs") || lowerQ.includes("career") || lowerQ.includes("engineer") || lowerQ.includes("greenhouse") || lowerQ.includes("lever") || lowerQ.includes("resume") || lowerQ.includes("apply") || lowerQ.includes("hiring"));
 
     // Dynamic targets per workflow domain
     if (isShopping) {
@@ -322,10 +324,11 @@ export function CommandCenter({
     setThoughts(prev => [...prev, "Connected to GhostBrowser client reasoning engine..."]);
     const lowerQ = q.toLowerCase();
 
-    const isShopping = lowerQ.includes("macbook") || lowerQ.includes("amazon") || lowerQ.includes("flipkart") || lowerQ.includes("laptop") || lowerQ.includes("price") || lowerQ.includes("buy") || lowerQ.includes("deal");
-    const isFood = lowerQ.includes("food") || lowerQ.includes("dinner") || lowerQ.includes("swiggy") || lowerQ.includes("zomato") || lowerQ.includes("chicken") || lowerQ.includes("naan") || lowerQ.includes("biryani") || lowerQ.includes("pizza") || lowerQ.includes("meal");
-    const isResearch = lowerQ.includes("research") || lowerQ.includes("paper") || lowerQ.includes("arxiv") || lowerQ.includes("deepseek") || lowerQ.includes("study") || lowerQ.includes("benchmark") || lowerQ.includes("reasoning");
-    const isCareer = lowerQ.includes("job") || lowerQ.includes("career") || lowerQ.includes("engineer") || lowerQ.includes("greenhouse") || lowerQ.includes("lever") || lowerQ.includes("resume") || lowerQ.includes("apply");
+    const isFlight = lowerQ.includes("flight") || lowerQ.includes("airline") || lowerQ.includes("indigo") || lowerQ.includes("air india") || lowerQ.includes("ticket") || lowerQ.includes("airport") || lowerQ.includes("fly") || lowerQ.includes("travel") || (lowerQ.includes("bangalore") && lowerQ.includes("kochi")) || (lowerQ.includes("delhi") && lowerQ.includes("mumbai"));
+    const isShopping = !isFlight && (lowerQ.includes("macbook") || lowerQ.includes("amazon") || lowerQ.includes("flipkart") || lowerQ.includes("laptop") || lowerQ.includes("price") || lowerQ.includes("buy") || lowerQ.includes("deal") || lowerQ.includes("shopping"));
+    const isFood = !isFlight && (lowerQ.includes("food") || lowerQ.includes("swiggy") || lowerQ.includes("zomato") || lowerQ.includes("chicken") || lowerQ.includes("naan") || lowerQ.includes("biryani") || lowerQ.includes("pizza") || lowerQ.includes("restaurant") || lowerQ.includes("mutton") || (lowerQ.includes("order") && !lowerQ.includes("flight")));
+    const isResearch = !isFlight && (lowerQ.includes("research") || lowerQ.includes("paper") || lowerQ.includes("papers") || lowerQ.includes("arxiv") || lowerQ.includes("deepseek") || lowerQ.includes("study") || lowerQ.includes("benchmark") || lowerQ.includes("reasoning") || lowerQ.includes("scholar"));
+    const isCareer = !isFlight && (lowerQ.includes("job") || lowerQ.includes("jobs") || lowerQ.includes("career") || lowerQ.includes("engineer") || lowerQ.includes("greenhouse") || lowerQ.includes("lever") || lowerQ.includes("resume") || lowerQ.includes("apply") || lowerQ.includes("hiring"));
 
     setTimeout(() => {
       if (isShopping) {
@@ -439,7 +442,8 @@ export function CommandCenter({
             title: "MacBook Air M3 (16GB / 256GB) Space Grey",
             subtitle: "Flipkart Assured • ₹4,500 Instant HDFC Card Discount Auto-Applied",
             merchant_name: "Flipkart Assured",
-            merchant_url: "https://www.flipkart.com/search?q=macbook+air+m3+16gb",
+            merchant_url: "https://www.flipkart.com/apple-macbook-air-m3-16gb-256gb-ssd-macos-space-grey-mrdh3hn-a/p/itm5b0e50f38b488",
+            direct_booking_url: "https://www.flipkart.com/apple-macbook-air-m3-16gb-256gb-ssd-macos-space-grey-mrdh3hn-a/p/itm5b0e50f38b488",
             price_formatted: "₹84,990",
             price_number: 84990,
             savings_formatted: "₹4,500",
@@ -490,7 +494,8 @@ export function CommandCenter({
             title: "Butter Chicken + 2 Butter Garlic Naan",
             subtitle: "Meghana Foods (4.6 ★) • 25 Mins Guaranteed Delivery",
             merchant_name: "Swiggy Gourmet",
-            merchant_url: "https://www.swiggy.com",
+            merchant_url: "https://www.swiggy.com/restaurants/meghana-foods-indiranagar-bangalore-10575",
+            direct_booking_url: "https://www.swiggy.com/restaurants/meghana-foods-indiranagar-bangalore-10575",
             price_formatted: "₹380",
             price_number: 380,
             savings_formatted: "₹65",
@@ -542,6 +547,7 @@ export function CommandCenter({
             subtitle: "arXiv:2501.12948 • Multi-stage Distillation Architecture",
             merchant_name: "arXiv Open Access",
             merchant_url: "https://arxiv.org/abs/2501.12948",
+            direct_booking_url: "https://arxiv.org/pdf/2501.12948",
             price_formatted: "Free (Open Access)",
             price_number: 0,
             specs: [
@@ -592,6 +598,7 @@ export function CommandCenter({
             subtitle: "Anthropic / Frontier AI Lab • $185,000 - $240,000 / yr",
             merchant_name: "Greenhouse.io Portal",
             merchant_url: "https://boards.greenhouse.io",
+            direct_booking_url: "https://boards.greenhouse.io",
             price_formatted: "$185,000 / yr",
             price_number: 0,
             savings_formatted: "100% Automated",
@@ -653,7 +660,8 @@ export function CommandCenter({
             title: `${airlineName} (${originCode} → ${destCode})`,
             subtitle: "Non-stop • Departure 06:15 AM • 1h 15m duration",
             merchant_name: "IndiGo Airline Portal",
-            merchant_url: `https://www.google.com/travel/flights?q=flights+from+${originCode}+to+${destCode}`,
+            merchant_url: `https://www.makemytrip.com/flight/search?itinerary=${originCode}-${destCode}-${new Date(Date.now() + 86400000).toISOString().slice(0,10)}&tripType=O&paxType=A-1_C-0_I-0&intl=false&cabinClass=E`,
+            direct_booking_url: `https://www.goindigo.in/booking/flight-select.html?origin=${originCode}&destination=${destCode}&date=${new Date(Date.now() + 86400000).toISOString().slice(0,10)}`,
             price_formatted: `₹${priceNum.toLocaleString()}`,
             price_number: priceNum,
             savings_formatted: "₹650",
@@ -718,6 +726,7 @@ export function CommandCenter({
       savingsFormatted: approvalCard.best_option.savings_formatted,
       merchantName: approvalCard.best_option.merchant_name,
       merchantUrl: approvalCard.best_option.merchant_url,
+      directBookingUrl: approvalCard.best_option.direct_booking_url || approvalCard.best_option.merchant_url,
       merkleRoot: approvalCard.dom_proof?.merkle_root || "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
       details: approvalCard.best_option.specs
     });
