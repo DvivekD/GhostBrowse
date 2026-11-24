@@ -1,0 +1,136 @@
+"use client";
+
+import React from "react";
+import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
+import { Cpu, ShieldCheck, Globe, CheckCircle2, Zap, Lock, Terminal, Activity } from "lucide-react";
+
+export function FeaturesBentoSection() {
+  return (
+    <section className="w-full max-w-6xl mx-auto px-4 py-16 md:py-24 border-t border-zinc-200 dark:border-zinc-800">
+      {/* Section Header */}
+      <div className="flex flex-col items-center text-center mb-12">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[11px] font-mono uppercase text-zinc-600 dark:text-zinc-400 mb-3 border border-zinc-200 dark:border-zinc-700">
+          <Zap className="w-3.5 h-3.5 text-amber-500" />
+          <span>Core Architectural Innovations</span>
+        </div>
+        <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-black dark:text-white font-sans">
+          Reimagining the Browser Stack
+        </h2>
+        <p className="text-sm md:text-base text-zinc-500 max-w-xl mt-3 font-sans">
+          Four foundational breakthroughs replacing manual human clicks with verified cryptographic autonomous execution.
+        </p>
+      </div>
+
+      <BentoGrid>
+        {/* Tile 1: 4-Tier Reasoning Cascade */}
+        <BentoGridItem
+          colSpan={8}
+          title="4-Tier AI Reasoning Cascade"
+          subtitle="Sub-50ms intent extraction without vendor lock-in or single points of failure"
+          badge="450 TOKENS/SEC"
+          icon={<Cpu className="w-5 h-5 text-black dark:text-white" />}
+          description="GhostBrowser automatically cascades natural language queries across high-octane hardware. Tier 1 harnesses SambaNova SN40L RDUs for sub-second planning, cascading gracefully to Gemini 3.8 Flash, Groq LPU, and deterministic heuristics."
+          header={
+            <div className="w-full p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-2 font-mono text-xs">
+              <div className="flex items-center justify-between text-zinc-500 text-[11px] pb-1 border-b border-zinc-200 dark:border-zinc-800">
+                <span>CASCADE TIER</span>
+                <span>INFERENCE ENGINE</span>
+                <span>LATENCY / STATUS</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-zinc-800 dark:text-zinc-200 font-bold">Tier 1</span>
+                <span className="text-zinc-600 dark:text-zinc-400">SambaNova SN40L (DeepSeek-R1 / Llama 3.3)</span>
+                <span className="text-emerald-600 dark:text-emerald-400">~38ms TTFT</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-zinc-800 dark:text-zinc-200 font-bold">Tier 2</span>
+                <span className="text-zinc-600 dark:text-zinc-400">Gemini 3.8 Flash Multimodal</span>
+                <span className="text-blue-500">Multimodal Fallback</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-zinc-800 dark:text-zinc-200 font-bold">Tier 3</span>
+                <span className="text-zinc-600 dark:text-zinc-400">Groq LPU (GPT-OSS 120B / Llama 3.1)</span>
+                <span className="text-purple-500">Ultra-Fast LPU</span>
+              </div>
+            </div>
+          }
+        />
+
+        {/* Tile 2: Cryptographic Merkle Engine */}
+        <BentoGridItem
+          colSpan={4}
+          title="Cryptographic Proof Engine"
+          subtitle="W3C C14N DOM Normalization"
+          badge="SHA-256 TREE"
+          icon={<ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+          description="GhostBrowser scrubs volatile scripts, whitespace, and dynamic session trackers with a deterministic W3C C14N parser, constructing a 4-Leaf Merkle Tree verified client-side via Web Crypto."
+          header={
+            <div className="w-full p-3.5 rounded-xl bg-zinc-900 text-white font-mono text-[10px] flex flex-col gap-2">
+              <div className="flex items-center justify-between text-zinc-400">
+                <span>MERKLE HIERARCHY</span>
+                <span className="text-emerald-400">VALID</span>
+              </div>
+              <div className="space-y-1">
+                <div className="text-zinc-400">Root: sha256(H01 + H23)</div>
+                <div className="text-zinc-500 pl-2">├── H01: [Price: ₹2,850] + [Airline: IndiGo]</div>
+                <div className="text-zinc-500 pl-2">└── H23: [Route: BLR-COK] + [Canonical DOM]</div>
+              </div>
+            </div>
+          }
+        />
+
+        {/* Tile 3: Anti-Bot Stealth Fleet */}
+        <BentoGridItem
+          colSpan={4}
+          title="Steel.dev Cloud CDP Fleet"
+          subtitle="Anti-Fingerprint Browser Fleet"
+          badge="STEALTH CDP"
+          icon={<Globe className="w-5 h-5 text-blue-500" />}
+          description="High-concurrency headless Chromium contexts connected via Chrome DevTools Protocol WebSocket. Bypasses Cloudflare, DataDome, and CAPTCHAs with human cursor emulation."
+          header={
+            <div className="w-full p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-1.5 font-mono text-[11px]">
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-500">CDP WebSocket:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">CONNECTED</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-500">Worker Concurrency:</span>
+                <span className="text-black dark:text-white font-bold">3 Contexts</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-500">Fingerprint Spoof:</span>
+                <span className="text-black dark:text-white font-bold">macOS Chromium 133</span>
+              </div>
+            </div>
+          }
+        />
+
+        {/* Tile 4: 1-Action Approval Safety */}
+        <BentoGridItem
+          colSpan={8}
+          title="1-Action Approval Safety Boundary"
+          subtitle="Zero-click autofill with mandatory human financial oversight"
+          badge="FINANCIAL SAFETY"
+          icon={<Lock className="w-5 h-5 text-black dark:text-white" />}
+          description="Autonomous AI must never possess unsupervised credit card charging authority. GhostBrowser executes the 47 complex steps of filtering, seating, and baggage checks, but halts at the payment gateway with a 1-click armed handoff."
+          header={
+            <div className="w-full p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-4 font-sans text-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 flex items-center justify-center font-bold text-xs">
+                  ✓
+                </div>
+                <div>
+                  <div className="font-bold text-black dark:text-white">Form Automation Complete</div>
+                  <div className="text-zinc-500 text-[11px]">47 fields populated • Zero clicks taken by user</div>
+                </div>
+              </div>
+              <div className="px-3 py-1.5 rounded-lg bg-black dark:bg-white text-white dark:text-black font-semibold text-xs tracking-tight shadow-xs">
+                Armed for 1-Click Approval
+              </div>
+            </div>
+          }
+        />
+      </BentoGrid>
+    </section>
+  );
+}
