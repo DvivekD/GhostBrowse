@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import Optional, Dict, Any
+import httpx
 from ghost_engine.config import settings
 
 logger = logging.getLogger(__name__)
@@ -8,7 +9,7 @@ logger = logging.getLogger(__name__)
 class BrowserPoolManager:
     """
     Manages browser connections across Steel.dev Cloud stealth fleet and local Chromium.
-    Dispenses isolated contexts while guaranteeing minimal memory footprint.
+    Dispenses isolated contexts and persistent sessions while guaranteeing minimal memory footprint.
     """
     def __init__(self, max_concurrent: int = 3):
         self.max_concurrent = max_concurrent
@@ -18,6 +19,58 @@ class BrowserPoolManager:
         self._active_contexts = 0
         self._lock = asyncio.Lock()
         self.is_steel_cloud = bool(settings.steel_api_key)
+
+    async def create_persistent_steel_session(self) -> Optional[Dict[str, Any]]:
+        """
+        Spins up a dedicated persistent Steel.dev cloud session via Steel REST API.
+        Returns metadata including {id, websocketUrl, sessionViewerUrl, debugUrl}.
+        """
+        if not settings.steel_api_key:
+            return None
+        try:
+            url = "https://api.steel.dev/v1/sessions"
+            headers = {
+                "steel-api-key": settings.steel_api_key,
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "timeout": 300000,
+                "isSelenium": False
+            }
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                if resp.status_code in (200, 201):
+                    data = resp.json()
+                    logger.info(f"Created persistent Steel.dev session {data.get('id')}: viewer {data.get('sessionViewerUrl')}")
+                    return {
+                        "id": data.get("id"),
+                        "websocketUrl": data.get("websocketUrl"),
+                        "sessionViewerUrl": data.get("sessionViewerUrl"),
+                        "debugUrl": data.get("debugUrl"),
+                    }
+                else:
+                    logger.warning(f"Failed to create Steel session: HTTP {resp.status_code} {resp.text[:120]}")
+        except Exception as e:
+            logger.warning(f"Error creating persistent Steel session: {e}")
+        return None
+
+    async def connect_persistent_session(self, websocket_url: str):
+        """
+        Connects Playwright to a persistent Steel session over CDP.
+        Returns (pw, browser, page).
+        Does NOT close the browser/session upon completion.
+        """
+        try:
+            from patchright.async_api import async_patchright
+            pw = await async_patchright().start()
+        except ImportError:
+            from playwright.async_api import async_playwright
+            pw = await async_playwright().start()
+
+        browser = await pw.chromium.connect_over_cdp(websocket_url)
+        context = browser.contexts[0] if browser.contexts else await browser.new_context()
+        page = context.pages[0] if context.pages else await context.new_page()
+        return pw, browser, page
 
     async def get_browser(self):
         async with self._lock:

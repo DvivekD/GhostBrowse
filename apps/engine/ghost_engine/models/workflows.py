@@ -97,8 +97,8 @@ class UniversalSearchParams(BaseModel):
     # 4. Research Fields
     research_topic: Optional[str] = Field(default=None, description="Subject topic or query")
     arxiv_category: Optional[str] = Field(default=None, description="arXiv taxonomy tag (cs.AI, cs.LG)")
-    require_pdf: bool = Field(default=True, description="Enforce direct verified PDF resolution")
-    max_papers: int = Field(default=3, description="Number of top papers to aggregate")
+    require_pdf: Optional[bool] = Field(default=True, description="Enforce direct verified PDF resolution")
+    max_papers: Optional[int] = Field(default=3, description="Number of top papers to aggregate")
 
     # 5. Utility Fields
     utility_service: Optional[str] = Field(default=None, description="Civic service (FASTag, Passport, etc.)")
@@ -108,9 +108,9 @@ class UniversalSearchParams(BaseModel):
     job_title: Optional[str] = Field(default=None, description="Target position / role title")
     company_name: Optional[str] = Field(default=None, description="Target company or incubator tag")
     location: Optional[str] = Field(default="Remote", description="Target location or Remote")
-    remote_ok: bool = Field(default=True, description="Allow remote positions")
+    remote_ok: Optional[bool] = Field(default=True, description="Allow remote positions")
     min_salary: Optional[float] = Field(default=None, description="Minimum annual compensation")
-    currency: str = Field(default="INR", description="Currency symbol or code")
+    currency: Optional[str] = Field(default="INR", description="Currency symbol or code")
 
     # Raw metadata dict
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary domain-specific metadata")
@@ -177,6 +177,7 @@ class TravelOption(BaseModel):
     baggage_allowance: str = Field(default="7kg Cabin + 15kg Check-in", description="Baggage allowance")
     source_url: str = Field(..., description="Source aggregator URL")
     booking_deep_link: str = Field(..., description="Direct booking or checkout link")
+    live_session_url: Optional[str] = Field(default=None, description="Interactive live Steel session viewer URL")
     merkle_proof: Optional[Dict[str, Any]] = Field(default=None, description="4-leaf Merkle proof")
     site_name: Optional[str] = Field(default="Google Flights", description="Aggregator name")
 
@@ -197,6 +198,7 @@ class ProductOption(BaseModel):
     specs: Dict[str, str] = Field(default_factory=dict, description="Technical specifications")
     source_url: Optional[str] = Field(default=None, description="Source URL")
     booking_deep_link: Optional[str] = Field(default=None, description="Deep link alias")
+    live_session_url: Optional[str] = Field(default=None, description="Interactive live Steel session viewer URL")
     merkle_proof: Optional[Dict[str, Any]] = Field(default=None, description="4-leaf Merkle proof")
     site_name: Optional[str] = Field(default=None, description="Store name alias")
     store_name: Optional[str] = Field(default=None, description="Store name alias")
@@ -233,6 +235,7 @@ class FoodOption(BaseModel):
     order_deep_link: str = Field(..., description="Direct order or cart checkout link")
     source_url: Optional[str] = Field(default=None, description="Source URL")
     booking_deep_link: Optional[str] = Field(default=None, description="Order link alias")
+    live_session_url: Optional[str] = Field(default=None, description="Interactive live Steel session viewer URL")
     merkle_proof: Optional[Dict[str, Any]] = Field(default=None, description="4-leaf Merkle proof")
     site_name: Optional[str] = Field(default="Swiggy", description="Platform name")
     platform_name: Optional[str] = Field(default=None, description="Platform name alias")
@@ -264,6 +267,7 @@ class PaperOption(BaseModel):
     price_inr: float = Field(default=0.0, description="0.0 for Open Access / Free")
     source_url: Optional[str] = Field(default=None, description="arXiv or journal page URL")
     booking_deep_link: Optional[str] = Field(default=None, description="PDF link alias")
+    live_session_url: Optional[str] = Field(default=None, description="Interactive live Steel session viewer URL")
     merkle_proof: Optional[Dict[str, Any]] = Field(default=None, description="4-leaf Merkle proof")
     site_name: Optional[str] = Field(default="arXiv", description="Repository name")
     source_platform: Optional[str] = Field(default=None, description="Source platform alias")
@@ -296,6 +300,7 @@ class JobOption(BaseModel):
     price_inr: float = Field(default=0.0, description="Application fee (0.0)")
     source_url: Optional[str] = Field(default=None, description="Job portal URL")
     booking_deep_link: Optional[str] = Field(default=None, description="Apply link alias")
+    live_session_url: Optional[str] = Field(default=None, description="Interactive live Steel session viewer URL")
     merkle_proof: Optional[Dict[str, Any]] = Field(default=None, description="4-leaf Merkle proof")
     site_name: Optional[str] = Field(default="Wellfound / YC", description="Job portal name")
     airline: Optional[str] = Field(default=None, description="Compatibility alias for frontend")
@@ -322,6 +327,7 @@ class UtilityOption(BaseModel):
     action_deep_link: str = Field(..., description="Direct portal action / payment / slot booking URL")
     source_url: Optional[str] = Field(default=None, description="Portal URL")
     booking_deep_link: Optional[str] = Field(default=None, description="Action link alias")
+    live_session_url: Optional[str] = Field(default=None, description="Interactive live Steel session viewer URL")
     merkle_proof: Optional[Dict[str, Any]] = Field(default=None, description="4-leaf Merkle proof")
     site_name: Optional[str] = Field(default="Passport Seva", description="Portal name alias")
     airline: Optional[str] = Field(default=None, description="Compatibility alias for frontend")
@@ -376,6 +382,7 @@ class UniversalApprovalCard(BaseModel):
     merkle_proof_summary: Optional[Dict[str, Any]] = Field(default=None, description="Summary of Merkle proof")
     metrics: List[Dict[str, str]] = Field(default_factory=list, description="Key domain metrics for UI badges")
     action_url: Optional[str] = Field(default=None, description="Direct URL for final human action")
+    live_session_url: Optional[str] = Field(default=None, description="Interactive live Steel session viewer URL")
 
     @classmethod
     def build_card(
@@ -496,13 +503,17 @@ class UniversalApprovalCard(BaseModel):
                 {"label": "Baggage", "value": str(opt_dict.get("baggage_allowance", "15kg Baggage Included"))}
             ]
 
+        live_session = opt_dict.get("live_session_url") or getattr(best_option, "live_session_url", None)
+
         normalized_best = {
             **opt_dict,
             "title": opt_title,
             "subtitle": opt_dict.get("subtitle") or f"{opt_merchant} • Verified Autonomous Execution",
             "merchant_name": opt_merchant,
             "merchant_url": action_url,
-            "direct_booking_url": f"/pay?domain={domain.value}&title={opt_title}&merchant={opt_merchant}&price={p_fmt}&amount={p_num}",
+            "direct_booking_url": action_url,
+            "live_session_url": live_session,
+            "pay_portal_url": f"/pay?domain={domain.value}&title={opt_title}&merchant={opt_merchant}&price={p_fmt}&amount={p_num}",
             "price_formatted": p_fmt,
             "price_number": p_num,
             "savings_formatted": f"₹{savings_inr:,.0f}" if savings_inr > 0 else None,
@@ -531,4 +542,5 @@ class UniversalApprovalCard(BaseModel):
             execution_time_seconds=execution_time_seconds,
             merkle_proof_summary=merkle_summary,
             action_url=action_url,
+            live_session_url=live_session,
         )

@@ -36,6 +36,58 @@ from ghost_engine.models.workflows import WorkflowDomain, UniversalSearchParams
 
 logger = logging.getLogger(__name__)
 
+AIRPORT_IATA: Dict[str, str] = {
+    "bangalore": "BLR", "bengaluru": "BLR", "blr": "BLR",
+    "kochi": "COK", "cochin": "COK", "cok": "COK",
+    "delhi": "DEL", "new delhi": "DEL", "del": "DEL",
+    "mumbai": "BOM", "bombay": "BOM", "bom": "BOM",
+    "hyderabad": "HYD", "hyd": "HYD",
+    "chennai": "MAA", "madras": "MAA", "maa": "MAA",
+    "kolkata": "CCU", "calcutta": "CCU", "ccu": "CCU",
+    "goa": "GOI", "goi": "GOI", "dabolim": "GOI", "mopa": "GOX",
+    "pune": "PNQ", "pnq": "PNQ",
+    "ahmedabad": "AMD", "amd": "AMD",
+    "jaipur": "JAI", "jai": "JAI",
+    "lucknow": "LKO", "lko": "LKO",
+    "chandigarh": "IXC", "ixc": "IXC",
+    "thiruvananthapuram": "TRV", "trivandrum": "TRV", "trv": "TRV",
+    "guwahati": "GAU", "gau": "GAU",
+    "srinagar": "SXR", "sxr": "SXR",
+    "amritsar": "ATQ", "atq": "ATQ",
+    "varanasi": "VNS", "vns": "VNS",
+    "bhubaneswar": "BBI", "bbi": "BBI",
+    "indore": "IDR", "idr": "IDR",
+    "coimbatore": "CJB", "cjb": "CJB",
+    "mangalore": "IXE", "ixe": "IXE",
+    "patna": "PAT", "pat": "PAT",
+    "nagpur": "NAG", "nag": "NAG",
+    "london": "LHR", "lhr": "LHR", "lgw": "LGW",
+    "dubai": "DXB", "dxb": "DXB",
+    "singapore": "SIN", "sin": "SIN",
+    "new york": "JFK", "jfk": "JFK", "nyc": "JFK", "ewr": "EWR",
+    "san francisco": "SFO", "sfo": "SFO",
+    "los angeles": "LAX", "lax": "LAX",
+    "tokyo": "HND", "hnd": "HND", "nrt": "NRT",
+    "paris": "CDG", "cdg": "CDG",
+    "bangkok": "BKK", "bkk": "BKK",
+    "kuala lumpur": "KUL", "kul": "KUL",
+    "sydney": "SYD", "syd": "SYD",
+    "toronto": "YYZ", "yyz": "YYZ",
+    "frankfurt": "FRA", "fra": "FRA",
+}
+
+def resolve_iata(city_or_code: str) -> Optional[str]:
+    """Resolves city or code string to 3-letter uppercase IATA code."""
+    c = str(city_or_code).strip().lower()
+    if c in AIRPORT_IATA:
+        return AIRPORT_IATA[c]
+    cleaned = re.sub(r"[^a-zA-Z]", "", c)
+    if cleaned in AIRPORT_IATA:
+        return AIRPORT_IATA[cleaned]
+    if len(cleaned) == 3 and cleaned.isalpha():
+        return cleaned.upper()
+    return None
+
 
 class AIPlanner:
     """
@@ -350,14 +402,30 @@ Output ONLY valid raw JSON without markdown formatting."""
         if domain == WorkflowDomain.TRAVEL:
             origin = "BLR"
             dest = "COK"
-            if "delhi" in q_lower or "del" in q_lower:
-                dest = "DEL"
-            elif "mumbai" in q_lower or "bom" in q_lower:
-                dest = "BOM"
-            elif "kochi" in q_lower or "cok" in q_lower:
-                dest = "COK"
-            elif "bangalore" in q_lower or "blr" in q_lower:
-                origin = "BLR"
+
+            # Parse route via regex (e.g. "from Bangalore to Kochi", "BLR to DEL", "BOM -> GOI")
+            m_route = re.search(r"(?:from\s+)?([a-zA-Z\s]+?)\s*(?:to|→|->|-)\s*([a-zA-Z\s]+)", q_lower)
+            if m_route:
+                p1 = m_route.group(1).strip()
+                p2 = m_route.group(2).strip()
+                p1_clean = re.sub(r"\b(flights|flight|fly|cheap|best|tickets|ticket)\b", "", p1).strip()
+                p2_clean = re.sub(r"\b(tomorrow|under|on|with|today|next|flights|flight|tickets|ticket|dinner|meal)\b.*", "", p2).strip()
+                c1 = resolve_iata(p1_clean)
+                c2 = resolve_iata(p2_clean)
+                if c1:
+                    origin = c1
+                if c2:
+                    dest = c2
+            else:
+                for k, v in AIRPORT_IATA.items():
+                    if f"to {k}" in q_lower or f"-> {k}" in q_lower or f"→ {k}" in q_lower:
+                        dest = v
+                    elif f"from {k}" in q_lower:
+                        origin = v
+
+            # Parse date if explicitly given (YYYY-MM-DD or 'tomorrow')
+            date_match = re.search(r"\b(202\d-\d{2}-\d{2})\b", query)
+            target_date = date_match.group(1) if date_match else tomorrow
 
             return UniversalSearchParams(
                 domain=WorkflowDomain.TRAVEL,
@@ -366,7 +434,7 @@ Output ONLY valid raw JSON without markdown formatting."""
                 title=f"{origin} → {dest}",
                 origin=origin,
                 destination=dest,
-                date=tomorrow,
+                date=target_date,
                 max_price_inr=price or 3500.0,
                 passengers=1,
                 cabin_class="economy",
@@ -377,13 +445,28 @@ Output ONLY valid raw JSON without markdown formatting."""
         # Domain 2: Shopping
         # -------------------------------------------------------------
         if domain == WorkflowDomain.SHOPPING:
-            product = "M3 MacBook Air 16GB"
-            if "macbook" in q_lower:
-                product = "Apple MacBook Air 13\" M3 (16GB/512GB)"
-            elif "iphone" in q_lower:
-                product = "Apple iPhone 16 Pro 128GB"
-            elif "headphone" in q_lower or "sony" in q_lower:
-                product = "Sony WH-1000XM5 Noise Cancelling Headphones"
+            product = None
+            m = re.search(r"(?:track|find|buy|search|deals\s+on|price\s+of)\s+(.*?)(?:\s+under|\s+lowest|\s+on|\s+across|\s+with|\s*₹|\s*\$|$)", q_lower)
+            if m:
+                extracted = re.sub(r"\b(lowest\s+price|deals|price|online)\b", "", m.group(1)).strip()
+                if len(extracted) > 2:
+                    product = extracted.title()
+
+            if not product:
+                if "macbook" in q_lower:
+                    product = "Apple MacBook Air 13\" M3 (16GB/512GB)"
+                elif "iphone" in q_lower:
+                    product = "Apple iPhone 16 Pro 128GB"
+                elif "headphone" in q_lower or "sony" in q_lower:
+                    product = "Sony WH-1000XM5 Noise Cancelling Headphones"
+                else:
+                    product = query.strip()[:40].title()
+
+            brand = None
+            for b in ["Apple", "Sony", "Samsung", "Dell", "HP", "Lenovo", "Asus", "Bose", "OnePlus"]:
+                if b.lower() in q_lower:
+                    brand = b
+                    break
 
             return UniversalSearchParams(
                 domain=WorkflowDomain.SHOPPING,
@@ -391,7 +474,7 @@ Output ONLY valid raw JSON without markdown formatting."""
                 target_sites=["Amazon India", "Flipkart", "Croma"],
                 title=product,
                 product_name=product,
-                target_brand="Apple" if "apple" in q_lower or "macbook" in q_lower or "iphone" in q_lower else None,
+                target_brand=brand,
                 max_price_inr=price or 95000.0,
                 min_rating=4.5,
                 preferences=prefs,
@@ -401,21 +484,28 @@ Output ONLY valid raw JSON without markdown formatting."""
         # Domain 3: Food
         # -------------------------------------------------------------
         if domain == WorkflowDomain.FOOD:
-            if "chicken" in q_lower or "naan" in q_lower or "butter" in q_lower:
-                dish = "Butter Chicken (Boneless) + 2 Butter Garlic Naan"
-                rest = "Meghana Foods (Indiranagar)"
-            elif "biryani" in q_lower:
-                dish = "Meghana Special Biryani + Raita"
-                rest = "Meghana Foods"
-            elif "pizza" in q_lower:
-                dish = "Gourmet Wood-Fired Margherita with Buffalo Mozzarella"
-                rest = "Brik Oven"
-            elif "burger" in q_lower:
-                dish = "Double Cheeseburger & Fries"
-                rest = "Top Rated Kitchen"
-            else:
-                dish = "Butter Chicken and Garlic Naan"
-                rest = "Meghana Foods"
+            dish = None
+            m = re.search(r"(?:order|get|delivery\s+of|find|want)\s+(.*?)(?:\s+under|\s+with|\s+from|\s+in|\s+at|\s+on|\s*₹|\s*\$|$)", q_lower)
+            if m:
+                extracted = re.sub(r"\b(food|delivery|online|fastest|top-rated|best)\b", "", m.group(1)).strip()
+                if len(extracted) > 2:
+                    dish = extracted.title()
+
+            if not dish:
+                if "chicken" in q_lower or "naan" in q_lower or "butter" in q_lower:
+                    dish = "Butter Chicken (Boneless) + 2 Butter Garlic Naan"
+                elif "biryani" in q_lower:
+                    dish = "Hyderabadi Mutton Dum Biryani + Raita"
+                elif "pizza" in q_lower:
+                    dish = "Gourmet Margherita Pizza"
+                elif "burger" in q_lower:
+                    dish = "Double Cheeseburger & Fries"
+                elif "pasta" in q_lower:
+                    dish = "Truffle Mushroom Pasta"
+                else:
+                    dish = query.strip()[:40].title()
+
+            rest = "Meghana Foods (Indiranagar)" if "biryani" in dish.lower() or "chicken" in dish.lower() else "Top Rated Kitchen"
 
             return UniversalSearchParams(
                 domain=WorkflowDomain.FOOD,
@@ -434,11 +524,20 @@ Output ONLY valid raw JSON without markdown formatting."""
         # Domain 4: Research
         # -------------------------------------------------------------
         if domain == WorkflowDomain.RESEARCH:
-            topic = "Web GUI Autonomous Agents"
-            if "gui" in q_lower or "agent" in q_lower:
-                topic = "Autonomous Web GUI Agents & Browser-Use Reasoning"
-            elif "llm" in q_lower or "reasoning" in q_lower:
-                topic = "Test-Time Compute & Reasoning Models"
+            topic = None
+            m = re.search(r"(?:papers\s+on|research\s+on|arxiv\s+papers\s+on|topic\s+on|find\s+papers\s+about)\s+(.*?)(?:\s+with|\s+on|\s+from|$)", q_lower)
+            if m:
+                extracted = re.sub(r"\b(top\s+\d+|verified\s+pdf|pdf\s+extracts|papers|paper)\b", "", m.group(1)).strip()
+                if len(extracted) > 2:
+                    topic = extracted.strip()
+
+            if not topic:
+                if "gui" in q_lower or "agent" in q_lower:
+                    topic = "Autonomous Web GUI Agents & Browser-Use Reasoning"
+                elif "llm" in q_lower or "reasoning" in q_lower or "deepseek" in q_lower or "r1" in q_lower:
+                    topic = "DeepSeek-R1 Test-Time Compute & Reasoning Models"
+                else:
+                    topic = query.strip()[:45]
 
             return UniversalSearchParams(
                 domain=WorkflowDomain.RESEARCH,
@@ -477,11 +576,22 @@ Output ONLY valid raw JSON without markdown formatting."""
         # -------------------------------------------------------------
         # Domain 6: Career
         # -------------------------------------------------------------
-        role = "Senior Fullstack AI Engineer"
-        if "react" in q_lower:
-            role = "Senior React 19 / AI Engineer"
-        elif "ai engineer" in q_lower or "agent" in q_lower:
-            role = "Staff AI Engineer — Autonomous Systems"
+        role = None
+        m = re.search(r"(?:apply\s+to|role\s+in|jobs\s+for|roles\s+for|looking\s+for)\s+(.*?)(?:\s+on|\s+at|\s+with|\s*>\s*|\s*\$|$)", q_lower)
+        if m:
+            extracted = re.sub(r"\b(remote|roles|role|jobs|job)\b", "", m.group(1)).strip()
+            if len(extracted) > 2:
+                role = extracted.title()
+
+        if not role:
+            if "react" in q_lower:
+                role = "Senior React 19 / AI Engineer"
+            elif "ai engineer" in q_lower or "agent" in q_lower:
+                role = "Staff AI Engineer — Autonomous Systems"
+            elif "fullstack" in q_lower:
+                role = "Senior Fullstack AI Engineer"
+            else:
+                role = "Senior AI Software Engineer"
 
         return UniversalSearchParams(
             domain=WorkflowDomain.CAREER,
@@ -489,7 +599,7 @@ Output ONLY valid raw JSON without markdown formatting."""
             target_sites=["Y Combinator", "Wellfound", "Greenhouse"],
             title=role,
             job_title=role,
-            company_name="YC W26 / Autonomous AI",
+            company_name="Anthropic / Frontier AI Lab",
             location="Remote",
             remote_ok=True,
             min_salary=price or 130000.0,

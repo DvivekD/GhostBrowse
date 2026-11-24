@@ -158,8 +158,8 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
                         savings_inr=4500.0,
                         rating=4.8,
                         delivery_eta="Tomorrow by 10 AM",
-                        product_url="https://www.flipkart.com/search?q=macbook+air+m3+16gb",
-                        deep_link="https://www.flipkart.com/search?q=macbook+air+m3+16gb",
+                        product_url="https://www.amazon.in/dp/B0CX23V61J",
+                        deep_link="https://www.amazon.in/dp/B0CX23V61J",
                         specs={"RAM": "16GB Unified", "Storage": "256GB SSD", "Discount": "₹4,500 HDFC Instant Rebate"},
                         merkle_proof=mock_proof
                     )
@@ -183,7 +183,9 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
                         rating=4.6,
                         delivery_time_mins=25,
                         coupon_applied="GOURMET_PASS",
-                        order_deep_link="https://www.swiggy.com",
+                        order_deep_link="https://www.swiggy.com/checkout",
+                        source_url="https://www.swiggy.com/city/bangalore/meghana-foods-5th-block-koramangala-rest10575",
+                        booking_deep_link="https://www.swiggy.com/checkout",
                         site_name="Swiggy Gourmet",
                         merkle_proof=mock_proof
                     )
@@ -250,8 +252,8 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
                         price_inr=2850.0,
                         meal_included=True,
                         baggage_allowance="7kg Cabin + 15kg Check-in (Included)",
-                        source_url="https://ghostbrowse-blush.vercel.app/pay?domain=travel",
-                        booking_deep_link="/pay?domain=travel&title=IndiGo%206E-243&price=2850&merchant=IndiGo%20Airlines",
+                        source_url=f"https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode={getattr(params, 'origin', 'BLR')}&destinationCityCode={getattr(params, 'destination', 'COK')}&paxNum=1",
+                        booking_deep_link=f"https://www.goindigo.in/booking/flight-select.html?indiGoZeroFare=false&isRoundTrip=false&originCityCode={getattr(params, 'origin', 'BLR')}&destinationCityCode={getattr(params, 'destination', 'COK')}&paxNum=1",
                         merkle_proof=mock_proof
                     )
                 ]
