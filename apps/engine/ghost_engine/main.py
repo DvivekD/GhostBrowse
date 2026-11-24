@@ -14,8 +14,15 @@ import httpx
 from ghost_engine.config import settings
 from ghost_engine.models.task import TaskExecuteRequest, FlightSearchParams, WorkerStatusEvent
 from ghost_engine.models.result import ApprovalCardPayload, FlightOption, DOMProof
+from ghost_engine.models.workflows import (
+    WorkflowDomain,
+    UniversalSearchParams,
+    UniversalApprovalCard,
+    UniversalOption,
+)
 from ghost_engine.ai.planner import planner
 from ghost_engine.browser.workers.flight_worker import FlightWorker
+from ghost_engine.browser.workers.universal_worker import UniversalWorker
 from ghost_engine.browser.pool import browser_pool
 from ghost_engine.crypto.c14n import MerkleProofEngine
 
@@ -92,51 +99,58 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
 
         params = await planner.parse_query(query)
         tier_label = planner.last_active_tier or "Cascaded Dual-Brain"
+        active_domain = getattr(params, "domain", WorkflowDomain.TRAVEL)
 
         await queue.put({
             "event": "plan_ready",
             "data": {**params.model_dump(), "active_tier": tier_label}
         })
+
+        target_summary = (
+            params.get_primary_entity_label()
+            if hasattr(params, "get_primary_entity_label")
+            else f"{getattr(params, 'origin', 'Origin')} → {getattr(params, 'destination', 'Dest')}"
+        )
         await queue.put({
             "event": "thought",
-            "data": {"message": f"[{tier_label}] Target locked: {params.origin} → {params.destination} on {params.date}. Budget: ₹{params.max_price_inr:,.0f}."}
+            "data": {
+                "message": (
+                    f"[{tier_label}] Target locked [{active_domain.value.upper()}]: {target_summary}. "
+                    f"Target sites: {', '.join(params.target_sites or ['Web Aggregators'])}."
+                )
+            }
         })
 
         # Phase 2: Parallel Workers (Steel.dev Cloud Fleet)
         fleet_type = "Steel.dev Cloud Fleet" if settings.steel_api_key else "Stealth Chromium Fleet"
+        workers = UniversalWorker.create_workers_for_domain(active_domain)
         await queue.put({
             "event": "thought",
-            "data": {"message": f"Launching 3 autonomous browser contexts via {fleet_type}..."}
+            "data": {"message": f"Launching {len(workers)} autonomous browser contexts via {fleet_type} for {active_domain.value.upper()}..."}
         })
 
-        workers = [
-            FlightWorker("w1", "Google Flights", "https://www.google.com/travel/flights?q=flights+from+{origin}+to+{destination}+on+{date}"),
-            FlightWorker("w2", "Skyscanner", "https://www.skyscanner.net/transport/flights/{origin}/{destination}/{date}"),
-            FlightWorker("w3", "Kayak", "https://www.kayak.com/flights/{origin}-{destination}/{date}")
-        ]
-
-        async def worker_runner(w: FlightWorker):
+        async def worker_runner(w: UniversalWorker):
             return await w.execute(params, queue)
 
         # Run workers in parallel
         results = await asyncio.gather(*(worker_runner(w) for w in workers), return_exceptions=True)
-        valid_flights = [r for r in results if isinstance(r, FlightOption)]
+        valid_options = [r for r in results if r is not None and not isinstance(r, Exception)]
 
-        if not valid_flights:
-            # Fallback mock flight guarantee for demo
-            mock_dom = f"<div class='flight-verified'><span>IndiGo 6E-243</span><span>₹2,850</span><span>{params.origin}-{params.destination}</span></div>"
+        if not valid_options:
+            # Fallback mock flight guarantee for demo if completely empty
+            mock_dom = f"<div class='flight-verified'><span>IndiGo 6E-243</span><span>₹2,850</span><span>{getattr(params, 'origin', 'BLR')}-{getattr(params, 'destination', 'COK')}</span></div>"
             mock_proof = MerkleProofEngine.build_4leaf_proof(
                 price=2850.0,
                 flight="IndiGo 6E-243",
-                itinerary=f"{params.origin} → {params.destination} on {params.date}",
+                itinerary=f"{getattr(params, 'origin', 'BLR')} → {getattr(params, 'destination', 'COK')} on {getattr(params, 'date', '2026-11-25')}",
                 raw_html=mock_dom
             )
-            valid_flights = [
+            valid_options = [
                 FlightOption(
                     airline="IndiGo 6E-243",
                     flight_number="6E-243",
-                    origin=params.origin,
-                    destination=params.destination,
+                    origin=getattr(params, "origin", "BLR"),
+                    destination=getattr(params, "destination", "COK"),
                     departure_time="06:15",
                     arrival_time="07:30",
                     duration_str="1h 15m",
@@ -151,54 +165,67 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
             ]
 
         # Phase 3: Synthesis & Cryptographic Merkle Verification
-        valid_flights.sort(key=lambda x: x.price_inr)
-        best = valid_flights[0]
-        alternatives = valid_flights[1:]
+        def _get_sort_key(opt: Any) -> float:
+            p = getattr(opt, "price_inr", 0.0)
+            return p if p > 0 else 999999.0
+
+        valid_options.sort(key=_get_sort_key)
+        best = valid_options[0]
+        alternatives = valid_options[1:]
 
         # Retrieve or compute 4-Leaf Merkle Proof
-        merkle_proof = best.merkle_proof
+        merkle_proof = getattr(best, "merkle_proof", None)
         if not merkle_proof:
-            sample_dom = f"<html><body><div id='price'>₹{best.price_inr:,.0f}</div><div id='airline'>{best.airline}</div><div id='route'>{params.origin}-{params.destination}</div></body></html>"
+            sample_dom = f"<html><body><div id='price'>₹{getattr(best, 'price_inr', 0):,.0f}</div><div id='entity'>{getattr(best, 'airline', target_summary)}</div></body></html>"
             merkle_proof = MerkleProofEngine.build_4leaf_proof(
-                price=best.price_inr,
-                flight=best.airline,
-                itinerary=f"{params.origin} → {params.destination} on {params.date}",
+                price=getattr(best, "price_inr", 0.0),
+                flight=getattr(best, "airline", target_summary),
+                itinerary=target_summary,
                 raw_html=sample_dom
             )
 
         timestamp_str = merkle_proof.get("timestamp_utc", datetime.now(timezone.utc).isoformat())
         exec_duration = (datetime.now() - start_time).total_seconds()
 
+        entity_label = (
+            getattr(best, "airline", None)
+            or getattr(best, "title", None)
+            or getattr(best, "dish_name", None)
+            or getattr(best, "job_title", None)
+            or getattr(best, "service_name", None)
+            or "Verified Result"
+        )
+        price_val = getattr(best, "price_inr", 0.0)
+        price_display = f"₹{price_val:,.0f}" if price_val > 0 else ("Open Access" if active_domain == WorkflowDomain.RESEARCH else "Free")
+
         proof = DOMProof(
-            source_site=f"{getattr(best, 'site_name', 'Google Flights')} ({'Steel.dev Cloud' if (browser_pool.is_steel_cloud or bool(settings.steel_api_key)) else 'Stealth Chromium'})",
+            source_site=f"{getattr(best, 'site_name', getattr(best, 'store_name', getattr(best, 'platform_name', 'Verified Portal')))} ({'Steel.dev Cloud' if (browser_pool.is_steel_cloud or bool(settings.steel_api_key)) else 'Stealth Chromium'})",
             timestamp_utc=timestamp_str,
-            canonical_url=best.source_url,
+            canonical_url=getattr(best, "source_url", "https://ghostbrowser.local"),
             dom_sha256=merkle_proof["leaves"]["canonical_dom"]["hash"],
             screenshot_sha256=hashlib.sha256(f"viewport-{merkle_proof['merkle_root']}".encode()).hexdigest(),
-            verified_price_text=f"₹{best.price_inr:,.0f}",
-            verified_airline_text=best.airline,
+            verified_price_text=price_display,
+            verified_airline_text=entity_label,
+            verified_entity_text=entity_label,
             merkle_root=merkle_proof["merkle_root"],
             composite_proof_token=merkle_proof["composite_proof_token"],
             merkle_leaves=merkle_proof["leaves"],
             intermediate_hashes=merkle_proof.get("intermediate_hashes")
         )
 
-        approval_payload = ApprovalCardPayload(
+        savings = getattr(best, "savings_inr", 0.0)
+        if savings <= 0 and params.max_price_inr and price_val > 0:
+            savings = max(0.0, params.max_price_inr - price_val)
+
+        approval_payload = UniversalApprovalCard.build_card(
+            domain=active_domain,
             task_id=task_id,
-            query_summary=f"Cheapest flight from {params.origin} to {params.destination} on {params.date}",
+            query_summary=f"{active_domain.value.capitalize()}: {target_summary}",
             best_option=best,
             alternative_options=alternatives,
             dom_proof=proof,
-            savings_inr=max(0.0, (params.max_price_inr or 3500.0) - best.price_inr),
-            action_type="hold_seat",
-            approval_button_text="Hold Seat at ₹" + f"{best.price_inr:,.0f}",
-            audio_summary_text=f"Found {best.airline} for ₹{best.price_inr:,.0f}, departing at {best.departure_time}. That's ₹{max(0.0, (params.max_price_inr or 3500.0) - best.price_inr):,.0f} under your budget with baggage and dinner included.",
+            savings_inr=savings,
             execution_time_seconds=round(exec_duration, 2),
-            merkle_proof_summary={
-                "root": merkle_proof["merkle_root"],
-                "token": merkle_proof["composite_proof_token"],
-                "leaves": merkle_proof["leaves"]
-            }
         )
 
         active_task_results[task_id] = approval_payload
@@ -213,7 +240,8 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
             "data": {
                 "task_id": task_id,
                 "duration": round(exec_duration, 2),
-                "merkle_root": merkle_proof["merkle_root"]
+                "merkle_root": merkle_proof["merkle_root"],
+                "domain": active_domain.value
             }
         })
 
