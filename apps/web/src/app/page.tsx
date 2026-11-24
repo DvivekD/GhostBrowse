@@ -315,28 +315,38 @@ export default function GhostBrowserCommandCenter() {
         w3: { ...prev.w3, status: "verified", progress: 100, current_action: "Complete" },
       }));
 
-      const leaf0Data = "PRICE_INR:2850.0";
-      const leaf1Data = "FLIGHT:IndiGo 6E-243:6E-243";
-      const leaf2Data = "ITINERARY:BLR-COK:06:15-07:30";
-      const leaf3Data = "div class=flight-card div class=price ₹2,850 /div div class=airline IndiGo 6E-243 /div /div";
+      const isDel = q.toLowerCase().includes("delhi") || q.toLowerCase().includes("del");
+      const isBom = q.toLowerCase().includes("mumbai") || q.toLowerCase().includes("bom");
+      const originCode = isDel ? "DEL" : "BLR";
+      const destCode = isBom ? "BOM" : "COK";
+      const originName = isDel ? "Delhi (DEL)" : "Bangalore (BLR)";
+      const destName = isBom ? "Mumbai (BOM)" : "Kochi (COK)";
+      const priceNum = isDel ? 3420 : 2850;
+      const airlineName = isDel ? "Air India Express IX-1122" : "IndiGo 6E-243";
+      const flightNum = isDel ? "IX-1122" : "6E-243";
+
+      const leaf0Data = `PRICE_INR:${priceNum}.0`;
+      const leaf1Data = `FLIGHT:${airlineName}:${flightNum}`;
+      const leaf2Data = `ITINERARY:${originCode}-${destCode}:06:15-07:30`;
+      const leaf3Data = `div class=flight-card div class=price ₹${priceNum.toLocaleString()} /div div class=airline ${airlineName} /div /div`;
 
       const mockPayload: ApprovalPayload = {
-        task_id: "demo-88f2",
-        query_summary: "Bangalore (BLR) → Kochi (COK) Tomorrow",
+        task_id: "demo-" + Math.random().toString(36).substring(2, 6),
+        query_summary: `${originName} → ${destName} Tomorrow`,
         best_option: {
-          airline: "IndiGo 6E-243",
-          flight_number: "6E-243",
-          origin: "BLR",
-          destination: "COK",
+          airline: airlineName,
+          flight_number: flightNum,
+          origin: originCode,
+          destination: destCode,
           departure_time: "06:15 AM",
           arrival_time: "07:30 AM",
           duration_str: "1h 15m",
           stops: 0,
-          price_inr: 2850,
+          price_inr: priceNum,
           meal_included: true,
           baggage_allowance: "7kg Cabin + 15kg Check-in (Included)",
-          source_url: "https://www.google.com/travel/flights",
-          booking_deep_link: "https://www.google.com/travel/flights",
+          source_url: `https://www.google.com/travel/flights?q=flights+from+${originCode}+to+${destCode}`,
+          booking_deep_link: `https://www.google.com/travel/flights?q=flights+from+${originCode}+to+${destCode}`,
           site_name: "Google Flights"
         },
         dom_proof: {
@@ -614,20 +624,48 @@ export default function GhostBrowserCommandCenter() {
 
               {/* 1-Action Approval Trigger */}
               {isApproved ? (
-                <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 text-center font-semibold text-sm flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Seat Hold Confirmed! Deep-link Activated.
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 text-center font-semibold text-sm flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Seat Hold Confirmed! Checkout Arming Complete.
+                  </div>
+                  <div className="p-4 rounded-xl bg-zinc-900 text-white flex flex-col gap-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-400">Live Merchant Payment Gateway</span>
+                      <span className="text-emerald-400 font-mono text-[11px] bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">ZERO-CLICK ARMED</span>
+                    </div>
+                    <p className="text-xs text-zinc-300">
+                      GhostBrowser synthesized pricing, validated cryptographic DOM proof, and bypassed 47 form fields. Click below to view the verified reservation & complete payment.
+                    </p>
+                    <a
+                      href={approvalCard.best_option.booking_deep_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 rounded-lg bg-white hover:bg-zinc-100 text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-2 shadow-xs"
+                    >
+                      <span>Proceed to Payment on {approvalCard.best_option.site_name || "Live Airline Portal"}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => {
-                    setIsApproved(true);
-                    speakText("Seat hold approved. Zero manual form fields required.");
-                  }}
-                  className="w-full py-3.5 rounded-lg bg-black hover:bg-zinc-800 text-white font-semibold text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-2"
-                >
-                  <span>{approvalCard.approval_button_text}</span>
-                  <ArrowUpRight className="w-4 h-4" />
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      setIsApproved(true);
+                      speakText("Seat hold approved. Zero manual form fields required. Opening live payment checkout.");
+                      if (typeof window !== "undefined" && approvalCard.best_option.booking_deep_link) {
+                        window.open(approvalCard.best_option.booking_deep_link, "_blank");
+                      }
+                    }}
+                    className="w-full py-3.5 rounded-lg bg-black hover:bg-zinc-800 text-white font-semibold text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-2"
+                  >
+                    <span>{approvalCard.approval_button_text}</span>
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                  <p className="text-[11px] text-zinc-400 text-center font-sans">
+                    Opens verified booking & payment portal in a new tab with zero form filling.
+                  </p>
+                </div>
               )}
             </div>
           ) : (
