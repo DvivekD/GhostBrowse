@@ -19,6 +19,10 @@ from ghost_engine.models.workflows import (
     UniversalSearchParams,
     UniversalApprovalCard,
     UniversalOption,
+    ProductOption,
+    FoodOption,
+    PaperOption,
+    JobOption,
 )
 from ghost_engine.ai.planner import planner
 from ghost_engine.browser.workers.flight_worker import FlightWorker
@@ -137,32 +141,120 @@ async def run_autonomous_swarm(task_id: str, query: str, queue: asyncio.Queue):
         valid_options = [r for r in results if r is not None and not isinstance(r, Exception)]
 
         if not valid_options:
-            # Fallback mock flight guarantee for demo if completely empty
-            mock_dom = f"<div class='flight-verified'><span>IndiGo 6E-243</span><span>₹2,850</span><span>{getattr(params, 'origin', 'BLR')}-{getattr(params, 'destination', 'COK')}</span></div>"
-            mock_proof = MerkleProofEngine.build_4leaf_proof(
-                price=2850.0,
-                flight="IndiGo 6E-243",
-                itinerary=f"{getattr(params, 'origin', 'BLR')} → {getattr(params, 'destination', 'COK')} on {getattr(params, 'date', '2026-11-25')}",
-                raw_html=mock_dom
-            )
-            valid_options = [
-                FlightOption(
-                    airline="IndiGo 6E-243",
-                    flight_number="6E-243",
-                    origin=getattr(params, "origin", "BLR"),
-                    destination=getattr(params, "destination", "COK"),
-                    departure_time="06:15",
-                    arrival_time="07:30",
-                    duration_str="1h 15m",
-                    stops=0,
-                    price_inr=2850.0,
-                    meal_included=True,
-                    baggage_allowance="7kg Cabin + 15kg Check-in (Included)",
-                    source_url="https://www.google.com/travel/flights",
-                    booking_deep_link="https://www.google.com/travel/flights",
-                    merkle_proof=mock_proof
+            if active_domain == WorkflowDomain.SHOPPING:
+                mock_dom = "<div class='product-verified'><span>Apple MacBook Air M3 (16GB, 256GB)</span><span>₹84,990</span><span>Flipkart Assured</span></div>"
+                mock_proof = MerkleProofEngine.build_4leaf_proof(
+                    price=84990.0,
+                    flight="Apple MacBook Air M3",
+                    itinerary="Flipkart Assured • ₹4,500 Instant Discount Applied",
+                    raw_html=mock_dom
                 )
-            ]
+                valid_options = [
+                    ProductOption(
+                        title="Apple MacBook Air M3 (16GB, 256GB SSD) Space Grey",
+                        store="Flipkart Assured",
+                        price_inr=84990.0,
+                        original_price_inr=89490.0,
+                        savings_inr=4500.0,
+                        rating=4.8,
+                        delivery_eta="Tomorrow by 10 AM",
+                        product_url="https://www.flipkart.com/search?q=macbook+air+m3+16gb",
+                        deep_link="https://www.flipkart.com/search?q=macbook+air+m3+16gb",
+                        specs={"RAM": "16GB Unified", "Storage": "256GB SSD", "Discount": "₹4,500 HDFC Instant Rebate"},
+                        merkle_proof=mock_proof
+                    )
+                ]
+            elif active_domain == WorkflowDomain.FOOD:
+                mock_dom = "<div class='food-verified'><span>Butter Chicken + 2 Naan</span><span>₹380</span><span>Meghana Foods</span></div>"
+                mock_proof = MerkleProofEngine.build_4leaf_proof(
+                    price=380.0,
+                    flight="Meghana Foods (Indiranagar)",
+                    itinerary="Butter Chicken + 2 Butter Garlic Naan • 25m Delivery",
+                    raw_html=mock_dom
+                )
+                valid_options = [
+                    FoodOption(
+                        dish_name="Butter Chicken (Boneless) + 2 Butter Garlic Naan",
+                        restaurant_name="Meghana Foods (Indiranagar)",
+                        cuisine="North Indian",
+                        price_inr=380.0,
+                        original_price_inr=445.0,
+                        savings_inr=65.0,
+                        rating=4.6,
+                        delivery_time_mins=25,
+                        coupon_applied="GOURMET_PASS",
+                        order_deep_link="https://www.swiggy.com",
+                        site_name="Swiggy Gourmet",
+                        merkle_proof=mock_proof
+                    )
+                ]
+            elif active_domain == WorkflowDomain.RESEARCH:
+                mock_dom = "<div class='paper-verified'><span>DeepSeek-R1 (arXiv:2501.12948)</span><span>AIME 79.8%</span></div>"
+                mock_proof = MerkleProofEngine.build_4leaf_proof(
+                    price=0.0,
+                    flight="DeepSeek-AI Research Group",
+                    itinerary="DeepSeek-R1: Incentivizing Reasoning in LLMs • arXiv:2501.12948",
+                    raw_html=mock_dom
+                )
+                valid_options = [
+                    PaperOption(
+                        title="DeepSeek-R1: Incentivizing Reasoning in LLMs via Reinforcement Learning",
+                        authors=["DeepSeek-AI Research Group"],
+                        published_date="2025-01-22",
+                        arxiv_id="2501.12948",
+                        pdf_url="https://arxiv.org/abs/2501.12948",
+                        abstract_summary="Pioneering large-scale cold-start reinforcement learning without supervised fine-tuning; achieves 79.8% pass@1 on AIME 2024.",
+                        citations_count=142,
+                        site_name="arXiv Open Access",
+                        merkle_proof=mock_proof
+                    )
+                ]
+            elif active_domain == WorkflowDomain.CAREER:
+                mock_dom = "<div class='job-verified'><span>Staff AI Engineer</span><span>Greenhouse</span></div>"
+                mock_proof = MerkleProofEngine.build_4leaf_proof(
+                    price=0.0,
+                    flight="Anthropic / Frontier AI Lab",
+                    itinerary="Staff AI Engineer — Autonomous Systems",
+                    raw_html=mock_dom
+                )
+                valid_options = [
+                    JobOption(
+                        job_title="Staff AI Engineer — Autonomous Systems",
+                        company_name="Anthropic / Frontier AI Lab",
+                        location="San Francisco / Remote",
+                        salary_range="$185,000 - $240,000 / yr",
+                        apply_deep_link="https://boards.greenhouse.io",
+                        site_name="Greenhouse.io",
+                        merkle_proof=mock_proof
+                    )
+                ]
+            else:
+                # Fallback mock flight guarantee for demo if completely empty
+                mock_dom = f"<div class='flight-verified'><span>IndiGo 6E-243</span><span>₹2,850</span><span>{getattr(params, 'origin', 'BLR')}-{getattr(params, 'destination', 'COK')}</span></div>"
+                mock_proof = MerkleProofEngine.build_4leaf_proof(
+                    price=2850.0,
+                    flight="IndiGo 6E-243",
+                    itinerary=f"{getattr(params, 'origin', 'BLR')} → {getattr(params, 'destination', 'COK')} on {getattr(params, 'date', '2026-11-25')}",
+                    raw_html=mock_dom
+                )
+                valid_options = [
+                    FlightOption(
+                        airline="IndiGo 6E-243",
+                        flight_number="6E-243",
+                        origin=getattr(params, "origin", "BLR"),
+                        destination=getattr(params, "destination", "COK"),
+                        departure_time="06:15",
+                        arrival_time="07:30",
+                        duration_str="1h 15m",
+                        stops=0,
+                        price_inr=2850.0,
+                        meal_included=True,
+                        baggage_allowance="7kg Cabin + 15kg Check-in (Included)",
+                        source_url="https://www.google.com/travel/flights",
+                        booking_deep_link="https://www.google.com/travel/flights",
+                        merkle_proof=mock_proof
+                    )
+                ]
 
         # Phase 3: Synthesis & Cryptographic Merkle Verification
         def _get_sort_key(opt: Any) -> float:

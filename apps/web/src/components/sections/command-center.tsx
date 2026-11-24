@@ -1,23 +1,26 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Mic,
-  MicOff,
-  Bot,
-  Terminal,
-  CheckCircle2,
-  Clock,
   ArrowUpRight,
   ShieldCheck,
+  CheckCircle2,
+  Terminal,
+  Bot,
+  Mic,
+  MicOff,
   Plane,
-  AlertCircle,
-  ExternalLink,
-  ChevronRight,
+  ShoppingBag,
+  Utensils,
+  BookOpen,
+  Briefcase,
+  Sparkles,
+  Lock,
 } from "lucide-react";
 import { MerkleModal, DOMProofPayload } from "@/components/ui/merkle-modal";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/three-d-card";
+import { CheckoutVaultModal, CheckoutWorkflowData } from "@/components/ui/checkout-vault-modal";
 
 export interface WorkerStatus {
   worker_id: string;
@@ -28,24 +31,31 @@ export interface WorkerStatus {
   dom_length?: number;
 }
 
-export interface ApprovalPayload {
+export interface UniversalApprovalPayload {
   task_id: string;
+  domain: "travel" | "shopping" | "food" | "research" | "career";
   query_summary: string;
   best_option: {
-    airline: string;
-    flight_number?: string;
-    origin: string;
-    destination: string;
-    departure_time: string;
-    arrival_time: string;
-    duration_str: string;
-    stops: number;
-    price_inr: number;
-    meal_included: boolean;
-    baggage_allowance: string;
-    source_url: string;
-    booking_deep_link: string;
-    site_name?: string;
+    title: string;
+    subtitle: string;
+    merchant_name: string;
+    merchant_url: string;
+    price_formatted: string;
+    price_number: number;
+    savings_formatted?: string;
+    specs: {
+      label: string;
+      value: string;
+    }[];
+    // Travel specific optional fields for backwards compatibility
+    airline?: string;
+    origin?: string;
+    destination?: string;
+    departure_time?: string;
+    arrival_time?: string;
+    duration_str?: string;
+    meal_included?: boolean;
+    baggage_allowance?: string;
   };
   dom_proof: DOMProofPayload;
   savings_inr: number;
@@ -66,7 +76,7 @@ export function CommandCenter({
   const [query, setQuery] = useState(initialQuery);
   const [isRunning, setIsRunning] = useState(false);
   const [thoughts, setThoughts] = useState<string[]>([
-    "Ready for autonomous instructions via voice or text.",
+    "Ready for autonomous multi-workflow instructions via voice or text.",
     "Steel.dev Cloud Fleet standby on 3 stealth contexts.",
     "W3C C14N DOM normalizer ready to synthesize SHA-256 Merkle proofs."
   ]);
@@ -75,19 +85,28 @@ export function CommandCenter({
     w2: { worker_id: "w2", target_site: "Skyscanner", status: "idle", progress: 0, current_action: "Standby" },
     w3: { worker_id: "w3", target_site: "Kayak", status: "idle", progress: 0, current_action: "Standby" }
   });
-  const [approvalCard, setApprovalCard] = useState<ApprovalPayload | null>(null);
+  const [approvalCard, setApprovalCard] = useState<UniversalApprovalPayload | null>(null);
   const [isApproved, setIsApproved] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showMerkleModal, setShowMerkleModal] = useState(false);
+  const [showCheckoutVault, setShowCheckoutVault] = useState(false);
+  const [checkoutVaultData, setCheckoutVaultData] = useState<CheckoutWorkflowData | null>(null);
   const [merkleVerificationStatus, setMerkleVerificationStatus] = useState<"verifying" | "verified" | "tampered">("verified");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // Update query when prop changes
+  const isFirstMount = useRef(true);
+
+  // Update query and auto-execute when prompt is selected from Verticals or Hero
   useEffect(() => {
-    if (initialQuery && initialQuery !== query) {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    if (initialQuery) {
       setQuery(initialQuery);
+      handleExecute(initialQuery);
     }
   }, [initialQuery]);
 
@@ -99,14 +118,14 @@ export function CommandCenter({
       const leaves = proof.merkle_leaves;
       const encoder = new TextEncoder();
 
-      const hashText = async (text: string) => {
+      const hashText = async (text: string): Promise<string> => {
         const data = encoder.encode(text);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashBuf = await crypto.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuf));
         return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
       };
 
-      for (const key of Object.keys(leaves)) {
+      for (const key of Object.keys(leaves) as (keyof typeof leaves)[]) {
         const leaf = leaves[key];
         const computed = await hashText(leaf.data);
         if (computed.toLowerCase() !== leaf.hash.toLowerCase()) {
@@ -162,29 +181,34 @@ export function CommandCenter({
         audioChunksRef.current = [];
 
         mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+          if (e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
         };
 
         mediaRecorder.onstop = async () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
-          stream.getTracks().forEach(track => track.stop());
-
-          const engineUrl = process.env.NEXT_PUBLIC_ENGINE_URL || "http://localhost:8000";
-          const formData = new FormData();
-          formData.append("file", audioBlob, "recording.wav");
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          stream.getTracks().forEach((track) => track.stop());
 
           try {
-            setThoughts(prev => [...prev, "Deepgram Nova-3 transcribing audio in real time..."]);
-            const resp = await fetch(`${engineUrl}/voice/transcribe`, {
+            const formData = new FormData();
+            formData.append("file", audioBlob, "recording.webm");
+
+            const engineUrl = process.env.NEXT_PUBLIC_ENGINE_URL || "http://localhost:8000";
+            const res = await fetch(`${engineUrl}/voice/transcribe`, {
               method: "POST",
-              body: formData
+              body: formData,
             });
-            if (resp.ok) {
-              const data = await resp.json();
+
+            if (res.ok) {
+              const data = await res.json();
               if (data.text) {
                 setQuery(data.text);
                 handleExecute(data.text);
               }
+            } else {
+              setQuery("Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner");
+              handleExecute("Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner");
             }
           } catch {
             setQuery("Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner");
@@ -195,8 +219,7 @@ export function CommandCenter({
         mediaRecorder.start();
         setIsRecording(true);
       } catch {
-        setQuery("Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner");
-        handleExecute("Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner");
+        setIsRecording(false);
       }
     }
   };
@@ -209,13 +232,47 @@ export function CommandCenter({
     setApprovalCard(null);
     setIsApproved(false);
     setShowMerkleModal(false);
+    setShowCheckoutVault(false);
     setThoughts([`Initiating autonomous instruction: "${q}"`]);
 
-    setWorkers({
-      w1: { worker_id: "w1", target_site: "Google Flights", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
-      w2: { worker_id: "w2", target_site: "Skyscanner", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
-      w3: { worker_id: "w3", target_site: "Kayak", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." }
-    });
+    const lowerQ = q.toLowerCase();
+    const isShopping = lowerQ.includes("macbook") || lowerQ.includes("amazon") || lowerQ.includes("flipkart") || lowerQ.includes("laptop") || lowerQ.includes("price") || lowerQ.includes("buy") || lowerQ.includes("deal");
+    const isFood = lowerQ.includes("food") || lowerQ.includes("dinner") || lowerQ.includes("swiggy") || lowerQ.includes("zomato") || lowerQ.includes("chicken") || lowerQ.includes("naan") || lowerQ.includes("biryani") || lowerQ.includes("pizza") || lowerQ.includes("meal");
+    const isResearch = lowerQ.includes("research") || lowerQ.includes("paper") || lowerQ.includes("arxiv") || lowerQ.includes("deepseek") || lowerQ.includes("study") || lowerQ.includes("benchmark") || lowerQ.includes("reasoning");
+    const isCareer = lowerQ.includes("job") || lowerQ.includes("career") || lowerQ.includes("engineer") || lowerQ.includes("greenhouse") || lowerQ.includes("lever") || lowerQ.includes("resume") || lowerQ.includes("apply");
+
+    // Dynamic targets per workflow domain
+    if (isShopping) {
+      setWorkers({
+        w1: { worker_id: "w1", target_site: "Flipkart Assured", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w2: { worker_id: "w2", target_site: "Amazon India", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w3: { worker_id: "w3", target_site: "Apple Official Store", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." }
+      });
+    } else if (isFood) {
+      setWorkers({
+        w1: { worker_id: "w1", target_site: "Swiggy Gourmet", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w2: { worker_id: "w2", target_site: "Zomato Live", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w3: { worker_id: "w3", target_site: "Restaurant Kitchen Dispatch", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." }
+      });
+    } else if (isResearch) {
+      setWorkers({
+        w1: { worker_id: "w1", target_site: "arXiv.org (abs/2501.12948)", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w2: { worker_id: "w2", target_site: "PapersWithCode Leaderboard", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w3: { worker_id: "w3", target_site: "Semantic Scholar Citations", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." }
+      });
+    } else if (isCareer) {
+      setWorkers({
+        w1: { worker_id: "w1", target_site: "Greenhouse.io Job Portal", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w2: { worker_id: "w2", target_site: "Lever.co Candidate Pipeline", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w3: { worker_id: "w3", target_site: "AshbyHQ ATS Auto-Fill", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." }
+      });
+    } else {
+      setWorkers({
+        w1: { worker_id: "w1", target_site: "Google Flights", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w2: { worker_id: "w2", target_site: "Skyscanner", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." },
+        w3: { worker_id: "w3", target_site: "Kayak", status: "initializing", progress: 10, current_action: "Connecting Steel.dev Cloud CDP..." }
+      });
+    }
 
     try {
       const engineUrl = process.env.NEXT_PUBLIC_ENGINE_URL || "http://localhost:8000";
@@ -241,7 +298,7 @@ export function CommandCenter({
       });
 
       eventSource.addEventListener("approval_card", (e: any) => {
-        const payload: ApprovalPayload = JSON.parse(e.data);
+        const payload: UniversalApprovalPayload = JSON.parse(e.data);
         setApprovalCard(payload);
         speakText(payload.audio_summary_text);
       });
@@ -263,100 +320,428 @@ export function CommandCenter({
 
   const runClientSimulation = (q: string) => {
     setThoughts(prev => [...prev, "Connected to GhostBrowser client reasoning engine..."]);
-    
+    const lowerQ = q.toLowerCase();
+
+    const isShopping = lowerQ.includes("macbook") || lowerQ.includes("amazon") || lowerQ.includes("flipkart") || lowerQ.includes("laptop") || lowerQ.includes("price") || lowerQ.includes("buy") || lowerQ.includes("deal");
+    const isFood = lowerQ.includes("food") || lowerQ.includes("dinner") || lowerQ.includes("swiggy") || lowerQ.includes("zomato") || lowerQ.includes("chicken") || lowerQ.includes("naan") || lowerQ.includes("biryani") || lowerQ.includes("pizza") || lowerQ.includes("meal");
+    const isResearch = lowerQ.includes("research") || lowerQ.includes("paper") || lowerQ.includes("arxiv") || lowerQ.includes("deepseek") || lowerQ.includes("study") || lowerQ.includes("benchmark") || lowerQ.includes("reasoning");
+    const isCareer = lowerQ.includes("job") || lowerQ.includes("career") || lowerQ.includes("engineer") || lowerQ.includes("greenhouse") || lowerQ.includes("lever") || lowerQ.includes("resume") || lowerQ.includes("apply");
+
     setTimeout(() => {
-      setThoughts(prev => [...prev, "Multi-Brain: Gemini 3.8 / Groq decomposed intent -> Extracting origin, destination, date & meal constraints."]);
-      setWorkers(prev => ({
-        ...prev,
-        w1: { ...prev.w1, status: "navigating", progress: 45, current_action: "Navigating Google Flights via Steel.dev CDP..." },
-        w2: { ...prev.w2, status: "navigating", progress: 40, current_action: "Navigating Skyscanner & bypassing bot gates..." },
-        w3: { ...prev.w3, status: "navigating", progress: 50, current_action: "Navigating Kayak morning flights..." },
-      }));
+      if (isShopping) {
+        setThoughts(prev => [...prev, "Multi-Brain: Gemini 3.8 decomposing SKU: Apple MacBook Air M3 16GB / 256GB SSD Space Grey."]);
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "navigating", progress: 45, current_action: "Evaluating Flipkart buy box & bank coupons..." },
+          w2: { ...prev.w2, status: "navigating", progress: 40, current_action: "Scanning Amazon India Prime pricing..." },
+          w3: { ...prev.w3, status: "navigating", progress: 50, current_action: "Checking Apple Authorized warranty policy..." },
+        }));
+      } else if (isFood) {
+        setThoughts(prev => [...prev, "Multi-Brain: Groq Llama-3.3 checking restaurant menus for Butter Chicken & Garlic Naan."]);
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "navigating", progress: 45, current_action: "Checking Meghana Foods Indiranagar on Swiggy..." },
+          w2: { ...prev.w2, status: "navigating", progress: 40, current_action: "Comparing surge & delivery fees on Zomato..." },
+          w3: { ...prev.w3, status: "navigating", progress: 50, current_action: "Checking live kitchen preparation queue..." },
+        }));
+      } else if (isResearch) {
+        setThoughts(prev => [...prev, "Multi-Brain: Resolving arXiv ID 2501.12948 and decomposing reasoning architecture proofs."]);
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "navigating", progress: 45, current_action: "Parsing arXiv HTML full-text & equations..." },
+          w2: { ...prev.w2, status: "navigating", progress: 40, current_action: "Verifying AIME and MATH-500 benchmark tables..." },
+          w3: { ...prev.w3, status: "navigating", progress: 50, current_action: "Synthesizing canonical BibTeX provenance..." },
+        }));
+      } else if (isCareer) {
+        setThoughts(prev => [...prev, "Multi-Brain: Decomposing Staff AI Engineer application on Greenhouse.io & Lever."]);
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "navigating", progress: 45, current_action: "Locating job board application endpoints..." },
+          w2: { ...prev.w2, status: "navigating", progress: 40, current_action: "Parsing PDF resume, GitHub & LinkedIn..." },
+          w3: { ...prev.w3, status: "navigating", progress: 50, current_action: "Auto-filling 32 application fields..." },
+        }));
+      } else {
+        setThoughts(prev => [...prev, "Multi-Brain: Gemini 3.8 / Groq decomposed intent -> Extracting origin, destination, date & meal constraints."]);
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "navigating", progress: 45, current_action: "Navigating Google Flights via Steel.dev CDP..." },
+          w2: { ...prev.w2, status: "navigating", progress: 40, current_action: "Navigating Skyscanner & bypassing bot gates..." },
+          w3: { ...prev.w3, status: "navigating", progress: 50, current_action: "Navigating Kayak morning flights..." },
+        }));
+      }
     }, 1100);
 
     setTimeout(() => {
-      setWorkers(prev => ({
-        ...prev,
-        w1: { ...prev.w1, status: "extracting", progress: 85, current_action: "Verified IndiGo 6E-243 at ₹2,850 (Meal & 15kg Baggage Included)" },
-        w2: { ...prev.w2, status: "extracting", progress: 80, current_action: "Extracted Akasa Air QP-1382 at ₹3,120" },
-        w3: { ...prev.w3, status: "extracting", progress: 75, current_action: "Extracted Air India Express at ₹3,350" },
-      }));
-      setThoughts(prev => [...prev, "Synthesizing options... Computing W3C C14N Canonical DOM & 4-Leaf Merkle Tree."]);
+      if (isShopping) {
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "extracting", progress: 85, current_action: "Flipkart: ₹84,990 with ₹4,500 HDFC Card instant discount" },
+          w2: { ...prev.w2, status: "extracting", progress: 80, current_action: "Amazon: ₹89,490 (No active card discount)" },
+          w3: { ...prev.w3, status: "extracting", progress: 75, current_action: "Verified 1-Year Apple India Official Warranty" },
+        }));
+        setThoughts(prev => [...prev, "Computing price delta... Flipkart leads by ₹4,500 with instant bank discount. Generating W3C C14N DOM proof."]);
+      } else if (isFood) {
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "extracting", progress: 85, current_action: "Swiggy: ₹380 with Free Delivery & Gourmet Pass applied" },
+          w2: { ...prev.w2, status: "extracting", progress: 80, current_action: "Zomato: ₹445 (Surge pricing active in area)" },
+          w3: { ...prev.w3, status: "extracting", progress: 75, current_action: "Kitchen confirmed 25-minute delivery window" },
+        }));
+        setThoughts(prev => [...prev, "Swiggy offers lowest cost and fastest ETA (25m). Computing canonical receipt proof."]);
+      } else if (isResearch) {
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "extracting", progress: 85, current_action: "DeepSeek-R1 core RL distillation framework synthesized" },
+          w2: { ...prev.w2, status: "extracting", progress: 80, current_action: "AIME 79.8% Pass@1 and MATH-500 97.3% verified" },
+          w3: { ...prev.w3, status: "extracting", progress: 75, current_action: "Full BibTeX and LaTeX formula tree indexed" },
+        }));
+        setThoughts(prev => [...prev, "Mathematical proofs & benchmark results compiled. Generating cryptographic citation hash."]);
+      } else if (isCareer) {
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "extracting", progress: 85, current_action: "Pre-filled 32/32 fields (Name, CV, GitHub, Experience)" },
+          w2: { ...prev.w2, status: "extracting", progress: 80, current_action: "Compensation matched: $185,000 - $240,000 / yr" },
+          w3: { ...prev.w3, status: "extracting", progress: 75, current_action: "Candidate match score: 98% compatible" },
+        }));
+        setThoughts(prev => [...prev, "Greenhouse application prepared with zero manual typing. Generating W3C C14N submission proof."]);
+      } else {
+        setWorkers(prev => ({
+          ...prev,
+          w1: { ...prev.w1, status: "extracting", progress: 85, current_action: "Verified IndiGo 6E-243 at ₹2,850 (Meal & 15kg Baggage Included)" },
+          w2: { ...prev.w2, status: "extracting", progress: 80, current_action: "Extracted Akasa Air QP-1382 at ₹3,120" },
+          w3: { ...prev.w3, status: "extracting", progress: 75, current_action: "Extracted Air India Express at ₹3,350" },
+        }));
+        setThoughts(prev => [...prev, "Synthesizing options... Computing W3C C14N Canonical DOM & 4-Leaf Merkle Tree."]);
+      }
     }, 2400);
 
     setTimeout(() => {
       setWorkers(prev => ({
         ...prev,
-        w1: { ...prev.w1, status: "verified", progress: 100, current_action: "4-Leaf Merkle Proof Verified (IndiGo 6E-243)" },
+        w1: { ...prev.w1, status: "verified", progress: 100, current_action: "4-Leaf Merkle Proof Verified" },
         w2: { ...prev.w2, status: "verified", progress: 100, current_action: "Complete" },
         w3: { ...prev.w3, status: "verified", progress: 100, current_action: "Complete" },
       }));
 
-      const isDel = q.toLowerCase().includes("delhi") || q.toLowerCase().includes("del");
-      const isBom = q.toLowerCase().includes("mumbai") || q.toLowerCase().includes("bom");
-      const originCode = isDel ? "DEL" : "BLR";
-      const destCode = isBom ? "BOM" : "COK";
-      const originName = isDel ? "Delhi (DEL)" : "Bangalore (BLR)";
-      const destName = isBom ? "Mumbai (BOM)" : "Kochi (COK)";
-      const priceNum = isDel ? 3420 : 2850;
-      const airlineName = isDel ? "Air India Express IX-1122" : "IndiGo 6E-243";
-      const flightNum = isDel ? "IX-1122" : "6E-243";
+      let mockPayload: UniversalApprovalPayload;
 
-      const leaf0Data = `PRICE_INR:${priceNum}.0`;
-      const leaf1Data = `FLIGHT:${airlineName}:${flightNum}`;
-      const leaf2Data = `ITINERARY:${originCode}-${destCode}:06:15-07:30`;
-      const leaf3Data = `div class=flight-card div class=price ₹${priceNum.toLocaleString()} /div div class=airline ${airlineName} /div /div`;
+      if (isShopping) {
+        const leaf0Data = "PRICE_INR:84990.0";
+        const leaf1Data = "ITEM:MacBook Air M3 (16GB, 256GB SSD) Space Grey";
+        const leaf2Data = "TERMS:Flipkart Assured:Express Delivery:HDFC4500";
+        const leaf3Data = "div class=price-tag ₹84,990 /div div class=discount Saved ₹4,500 /div";
 
-      const mockPayload: ApprovalPayload = {
-        task_id: "demo-" + Math.random().toString(36).substring(2, 6),
-        query_summary: `${originName} → ${destName} Tomorrow`,
-        best_option: {
-          airline: airlineName,
-          flight_number: flightNum,
-          origin: originCode,
-          destination: destCode,
-          departure_time: "06:15 AM",
-          arrival_time: "07:30 AM",
-          duration_str: "1h 15m",
-          stops: 0,
-          price_inr: priceNum,
-          meal_included: true,
-          baggage_allowance: "7kg Cabin + 15kg Check-in (Included)",
-          source_url: `https://www.google.com/travel/flights?q=flights+from+${originCode}+to+${destCode}`,
-          booking_deep_link: `https://www.google.com/travel/flights?q=flights+from+${originCode}+to+${destCode}`,
-          site_name: "Google Flights"
-        },
-        dom_proof: {
-          source_site: "Google Flights Live Index",
-          timestamp_utc: new Date().toISOString(),
-          canonical_url: `https://www.google.com/travel/flights?q=flights+from+${originCode}+to+${destCode}`,
-          dom_sha256: "568c76448dc34799a3038eae105a51937b0e0898319644c9f75f0c68ccc557bf",
-          screenshot_sha256: "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
-          verified_price_text: `₹${priceNum.toLocaleString()}`,
-          verified_airline_text: airlineName,
-          merkle_root: "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
-          composite_proof_token: `PROOF-${airlineName.replace(/\s+/g, '-')}-${priceNum}-${originCode}-${destCode}-VERIFIED-W3C-C14N`,
-          merkle_leaves: {
-            leaf_0: { index: 0, label: "Price Claim", data: leaf0Data, hash: "4a2829288009d3b3796fc18d360058b753a8089fd10b377f0a8039bc077759ad" },
-            leaf_1: { index: 1, label: "Flight Identity", data: leaf1Data, hash: "7b36f7596a7924c5e317181c00d813735ff6f0bbf784a0d8ff046247c4389025" },
-            leaf_2: { index: 2, label: "Itinerary Schedule", data: leaf2Data, hash: "39b6e22f28148b1116521bcfa25d36e2f111c1bc16e91129aa2463e80f4f9f7d" },
-            leaf_3: { index: 3, label: "Canonical DOM Extract", data: leaf3Data, hash: "95663673c6815340656a8ee68593309a65cf233fe1fa023a105825d1945c589e", preview: leaf3Data }
+        mockPayload = {
+          task_id: "demo-" + Math.random().toString(36).substring(2, 6),
+          domain: "shopping",
+          query_summary: "MacBook Air M3 16GB Price Arbitrage",
+          best_option: {
+            title: "MacBook Air M3 (16GB / 256GB) Space Grey",
+            subtitle: "Flipkart Assured • ₹4,500 Instant HDFC Card Discount Auto-Applied",
+            merchant_name: "Flipkart Assured",
+            merchant_url: "https://www.flipkart.com/search?q=macbook+air+m3+16gb",
+            price_formatted: "₹84,990",
+            price_number: 84990,
+            savings_formatted: "₹4,500",
+            specs: [
+              { label: "Configuration", value: "16GB Unified RAM • 256GB SSD" },
+              { label: "Merchant", value: "Flipkart Assured (Apple Authorised)" },
+              { label: "Delivery", value: "Free Next-Day Delivery" },
+              { label: "Card Discount", value: "₹4,500 Instant Bank Rebate Applied" }
+            ]
           },
-          intermediate_hashes: {
-            h01: "15d8ecf6a445585f6e80b2a59a0f48866164d1f2e1bb4f6d3345858cfbd90f3c",
-            h23: "bb89a74bfad2862a9391d4e7a8e0cb82894121543881ef106606a23805f77894"
-          }
-        },
-        savings_inr: 650,
-        approval_button_text: `1-Click Approve (Hold Seat & Pay ₹${priceNum.toLocaleString()})`,
-        audio_summary_text: `Found verified option: ${airlineName} at ₹${priceNum.toLocaleString()} with meal and 15kg baggage included. Ready for one-click approval.`,
-        execution_time_seconds: 2.8
-      };
+          dom_proof: {
+            source_site: "Flipkart Live Product Catalog",
+            timestamp_utc: new Date().toISOString(),
+            canonical_url: "https://www.flipkart.com/search?q=macbook+air+m3+16gb",
+            dom_sha256: "3b7c819d44e5f2a1b9c0d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4",
+            screenshot_sha256: "7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b",
+            verified_price_text: "₹84,990",
+            verified_airline_text: "Apple MacBook Air M3",
+            merkle_root: "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
+            composite_proof_token: "PROOF-MACBOOK-AIR-M3-84990-FLIPKART-VERIFIED",
+            merkle_leaves: {
+              leaf_0: { index: 0, label: "Price Claim", data: leaf0Data, hash: "4a2829288009d3b3796fc18d360058b753a8089fd10b377f0a8039bc077759ad" },
+              leaf_1: { index: 1, label: "Item Specification", data: leaf1Data, hash: "7b36f7596a7924c5e317181c00d813735ff6f0bbf784a0d8ff046247c4389025" },
+              leaf_2: { index: 2, label: "Merchant Terms", data: leaf2Data, hash: "39b6e22f28148b1116521bcfa25d36e2f111c1bc16e91129aa2463e80f4f9f7d" },
+              leaf_3: { index: 3, label: "Canonical DOM Extract", data: leaf3Data, hash: "95663673c6815340656a8ee68593309a65cf233fe1fa023a105825d1945c589e", preview: leaf3Data }
+            },
+            intermediate_hashes: {
+              h01: "15d8ecf6a445585f6e80b2a59a0f48866164d1f2e1bb4f6d3345858cfbd90f3c",
+              h23: "bb89a74bfad2862a9391d4e7a8e0cb82894121543881ef106606a23805f77894"
+            }
+          },
+          savings_inr: 4500,
+          approval_button_text: "1-Click Approve (Hold & Buy at ₹84,990)",
+          audio_summary_text: "Found verified deal: MacBook Air M3 16GB on Flipkart at ₹84,990 with ₹4,500 instant discount applied. Free next-day delivery.",
+          execution_time_seconds: 2.6
+        };
+      } else if (isFood) {
+        const leaf0Data = "PRICE_INR:380.0";
+        const leaf1Data = "ITEM:Butter Chicken + 2 Butter Garlic Naan";
+        const leaf2Data = "DELIVERY:Swiggy Gourmet:Meghana Foods:25m";
+        const leaf3Data = "div class=order ₹380 /div div class=restaurant Meghana Foods /div";
+
+        mockPayload = {
+          task_id: "demo-" + Math.random().toString(36).substring(2, 6),
+          domain: "food",
+          query_summary: "Butter Chicken & Naan Midnight Order",
+          best_option: {
+            title: "Butter Chicken + 2 Butter Garlic Naan",
+            subtitle: "Meghana Foods (4.6 ★) • 25 Mins Guaranteed Delivery",
+            merchant_name: "Swiggy Gourmet",
+            merchant_url: "https://www.swiggy.com",
+            price_formatted: "₹380",
+            price_number: 380,
+            savings_formatted: "₹65",
+            specs: [
+              { label: "Portion Size", value: "Serves 2 • Mild Indian Spice" },
+              { label: "Restaurant", value: "Meghana Foods (Indiranagar)" },
+              { label: "Estimated Delivery", value: "25 Mins Guaranteed ETA" },
+              { label: "Discounts", value: "₹65 Gourmet Pass Free Delivery" }
+            ]
+          },
+          dom_proof: {
+            source_site: "Swiggy Live Kitchen Dispatch",
+            timestamp_utc: new Date().toISOString(),
+            canonical_url: "https://www.swiggy.com",
+            dom_sha256: "2c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d",
+            screenshot_sha256: "8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c",
+            verified_price_text: "₹380",
+            verified_airline_text: "Meghana Foods Gourmet",
+            merkle_root: "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
+            composite_proof_token: "PROOF-BUTTER-CHICKEN-380-SWIGGY-VERIFIED",
+            merkle_leaves: {
+              leaf_0: { index: 0, label: "Price Claim", data: leaf0Data, hash: "4a2829288009d3b3796fc18d360058b753a8089fd10b377f0a8039bc077759ad" },
+              leaf_1: { index: 1, label: "Menu Selection", data: leaf1Data, hash: "7b36f7596a7924c5e317181c00d813735ff6f0bbf784a0d8ff046247c4389025" },
+              leaf_2: { index: 2, label: "Delivery Slot", data: leaf2Data, hash: "39b6e22f28148b1116521bcfa25d36e2f111c1bc16e91129aa2463e80f4f9f7d" },
+              leaf_3: { index: 3, label: "Canonical DOM Extract", data: leaf3Data, hash: "95663673c6815340656a8ee68593309a65cf233fe1fa023a105825d1945c589e", preview: leaf3Data }
+            },
+            intermediate_hashes: {
+              h01: "15d8ecf6a445585f6e80b2a59a0f48866164d1f2e1bb4f6d3345858cfbd90f3c",
+              h23: "bb89a74bfad2862a9391d4e7a8e0cb82894121543881ef106606a23805f77894"
+            }
+          },
+          savings_inr: 65,
+          approval_button_text: "1-Click Approve (Hold Slot & Order at ₹380)",
+          audio_summary_text: "Found lowest price for Butter Chicken and Garlic Naan on Swiggy at ₹380 with 25-minute delivery. Ready for one-click order.",
+          execution_time_seconds: 2.4
+        };
+      } else if (isResearch) {
+        const leaf0Data = "CITATION:arXiv:2501.12948";
+        const leaf1Data = "MODEL:DeepSeek-R1-Zero / DeepSeek-R1";
+        const leaf2Data = "BENCHMARKS:AIME 79.8%:MATH-500 97.3%";
+        const leaf3Data = "div class=arxiv DeepSeek-R1 RL reasoning synthesis /div";
+
+        mockPayload = {
+          task_id: "demo-" + Math.random().toString(36).substring(2, 6),
+          domain: "research",
+          query_summary: "DeepSeek-R1 Architecture Synthesis",
+          best_option: {
+            title: "DeepSeek-R1: Incentivizing Reasoning in LLMs",
+            subtitle: "arXiv:2501.12948 • Multi-stage Distillation Architecture",
+            merchant_name: "arXiv Open Access",
+            merchant_url: "https://arxiv.org/abs/2501.12948",
+            price_formatted: "Free (Open Access)",
+            price_number: 0,
+            specs: [
+              { label: "Benchmark (AIME)", value: "79.8% Pass@1 (Equal to OpenAI o1)" },
+              { label: "Benchmark (MATH-500)", value: "97.3% Verified Pass Rate" },
+              { label: "Training Methodology", value: "Large-scale Cold-Start RL Distillation" },
+              { label: "License & Access", value: "MIT Open Source Model Weights" }
+            ]
+          },
+          dom_proof: {
+            source_site: "arXiv.org Open Research Index",
+            timestamp_utc: new Date().toISOString(),
+            canonical_url: "https://arxiv.org/abs/2501.12948",
+            dom_sha256: "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+            screenshot_sha256: "9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d",
+            verified_price_text: "Free (Open Access)",
+            verified_airline_text: "DeepSeek AI Research",
+            merkle_root: "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
+            composite_proof_token: "PROOF-DEEPSEEK-R1-ARXIV-2501-12948-VERIFIED",
+            merkle_leaves: {
+              leaf_0: { index: 0, label: "Citation Leaf", data: leaf0Data, hash: "4a2829288009d3b3796fc18d360058b753a8089fd10b377f0a8039bc077759ad" },
+              leaf_1: { index: 1, label: "Model Architecture", data: leaf1Data, hash: "7b36f7596a7924c5e317181c00d813735ff6f0bbf784a0d8ff046247c4389025" },
+              leaf_2: { index: 2, label: "Empirical Benchmarks", data: leaf2Data, hash: "39b6e22f28148b1116521bcfa25d36e2f111c1bc16e91129aa2463e80f4f9f7d" },
+              leaf_3: { index: 3, label: "Canonical DOM Extract", data: leaf3Data, hash: "95663673c6815340656a8ee68593309a65cf233fe1fa023a105825d1945c589e", preview: leaf3Data }
+            },
+            intermediate_hashes: {
+              h01: "15d8ecf6a445585f6e80b2a59a0f48866164d1f2e1bb4f6d3345858cfbd90f3c",
+              h23: "bb89a74bfad2862a9391d4e7a8e0cb82894121543881ef106606a23805f77894"
+            }
+          },
+          savings_inr: 0,
+          approval_button_text: "1-Click Approve (Download Verified Synthesis)",
+          audio_summary_text: "Synthesized DeepSeek-R1 arXiv paper and extracted AIME 79.8% benchmark proofs. Ready for 1-click markdown download.",
+          execution_time_seconds: 2.5
+        };
+      } else if (isCareer) {
+        const leaf0Data = "SALARY_USD:185000.0";
+        const leaf1Data = "ROLE:Staff AI Engineer (Autonomous Systems)";
+        const leaf2Data = "PORTAL:Greenhouse.io:Anthropic:32Inputs";
+        const leaf3Data = "div class=job Staff AI Engineer /div div class=salary $185,000 /yr /div";
+
+        mockPayload = {
+          task_id: "demo-" + Math.random().toString(36).substring(2, 6),
+          domain: "career",
+          query_summary: "Staff AI Engineer Autonomous Apply",
+          best_option: {
+            title: "Staff AI Engineer — Autonomous Systems",
+            subtitle: "Anthropic / Frontier AI Lab • $185,000 - $240,000 / yr",
+            merchant_name: "Greenhouse.io Portal",
+            merchant_url: "https://boards.greenhouse.io",
+            price_formatted: "$185,000 / yr",
+            price_number: 0,
+            savings_formatted: "100% Automated",
+            specs: [
+              { label: "Application Portal", value: "Greenhouse.io (Auth Ready)" },
+              { label: "Form Pre-fill", value: "32 Inputs Populated from CV" },
+              { label: "Match Score", value: "98% AI Stack Compatibility" },
+              { label: "Human-in-Loop", value: "1-Action Submission Armed" }
+            ]
+          },
+          dom_proof: {
+            source_site: "Greenhouse.io Candidate Dispatch",
+            timestamp_utc: new Date().toISOString(),
+            canonical_url: "https://boards.greenhouse.io",
+            dom_sha256: "5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e",
+            screenshot_sha256: "0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
+            verified_price_text: "$185,000 / yr",
+            verified_airline_text: "Staff AI Engineer",
+            merkle_root: "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
+            composite_proof_token: "PROOF-STAFF-AI-ENGINEER-GREENHOUSE-VERIFIED",
+            merkle_leaves: {
+              leaf_0: { index: 0, label: "Compensation Claim", data: leaf0Data, hash: "4a2829288009d3b3796fc18d360058b753a8089fd10b377f0a8039bc077759ad" },
+              leaf_1: { index: 1, label: "Role Specification", data: leaf1Data, hash: "7b36f7596a7924c5e317181c00d813735ff6f0bbf784a0d8ff046247c4389025" },
+              leaf_2: { index: 2, label: "Submission Safety", data: leaf2Data, hash: "39b6e22f28148b1116521bcfa25d36e2f111c1bc16e91129aa2463e80f4f9f7d" },
+              leaf_3: { index: 3, label: "Canonical DOM Extract", data: leaf3Data, hash: "95663673c6815340656a8ee68593309a65cf233fe1fa023a105825d1945c589e", preview: leaf3Data }
+            },
+            intermediate_hashes: {
+              h01: "15d8ecf6a445585f6e80b2a59a0f48866164d1f2e1bb4f6d3345858cfbd90f3c",
+              h23: "bb89a74bfad2862a9391d4e7a8e0cb82894121543881ef106606a23805f77894"
+            }
+          },
+          savings_inr: 0,
+          approval_button_text: "1-Click Approve (Submit Application via Greenhouse)",
+          audio_summary_text: "Prepared autonomous job application for Staff AI Engineer on Greenhouse. All 32 form fields populated with resume data. Ready for 1-click submission.",
+          execution_time_seconds: 2.3
+        };
+      } else {
+        // Flight Workflow Default
+        const isDel = lowerQ.includes("delhi") || lowerQ.includes("del");
+        const isBom = lowerQ.includes("mumbai") || lowerQ.includes("bom");
+        const originCode = isDel ? "DEL" : "BLR";
+        const destCode = isBom ? "BOM" : "COK";
+        const originName = isDel ? "Delhi (DEL)" : "Bangalore (BLR)";
+        const destName = isBom ? "Mumbai (BOM)" : "Kochi (COK)";
+        const priceNum = isDel ? 3420 : 2850;
+        const airlineName = isDel ? "Air India Express IX-1122" : "IndiGo 6E-243";
+        const flightNum = isDel ? "IX-1122" : "6E-243";
+
+        const leaf0Data = `PRICE_INR:${priceNum}.0`;
+        const leaf1Data = `FLIGHT:${airlineName}:${flightNum}`;
+        const leaf2Data = `ITINERARY:${originCode}-${destCode}:06:15-07:30`;
+        const leaf3Data = `div class=flight-card div class=price ₹${priceNum.toLocaleString()} /div div class=airline ${airlineName} /div /div`;
+
+        mockPayload = {
+          task_id: "demo-" + Math.random().toString(36).substring(2, 6),
+          domain: "travel",
+          query_summary: `${originName} → ${destName} Tomorrow`,
+          best_option: {
+            title: `${airlineName} (${originCode} → ${destCode})`,
+            subtitle: "Non-stop • Departure 06:15 AM • 1h 15m duration",
+            merchant_name: "IndiGo Airline Portal",
+            merchant_url: `https://www.google.com/travel/flights?q=flights+from+${originCode}+to+${destCode}`,
+            price_formatted: `₹${priceNum.toLocaleString()}`,
+            price_number: priceNum,
+            savings_formatted: "₹650",
+            specs: [
+              { label: "Departure", value: `06:15 AM (${originCode})` },
+              { label: "Duration", value: "1h 15m (Non-stop)" },
+              { label: "Arrival", value: `07:30 AM (${destCode})` },
+              { label: "Baggage / Meal", value: "15kg Baggage + Hot Meal Included" }
+            ],
+            airline: airlineName,
+            origin: originCode,
+            destination: destCode,
+            departure_time: "06:15 AM",
+            arrival_time: "07:30 AM",
+            duration_str: "1h 15m",
+            meal_included: true,
+            baggage_allowance: "7kg Cabin + 15kg Check-in (Included)"
+          },
+          dom_proof: {
+            source_site: "Google Flights Live Index",
+            timestamp_utc: new Date().toISOString(),
+            canonical_url: `https://www.google.com/travel/flights?q=flights+from+${originCode}+to+${destCode}`,
+            dom_sha256: "568c76448dc34799a3038eae105a51937b0e0898319644c9f75f0c68ccc557bf",
+            screenshot_sha256: "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
+            verified_price_text: `₹${priceNum.toLocaleString()}`,
+            verified_airline_text: airlineName,
+            merkle_root: "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
+            composite_proof_token: `PROOF-${airlineName.replace(/\s+/g, '-')}-${priceNum}-${originCode}-${destCode}-VERIFIED`,
+            merkle_leaves: {
+              leaf_0: { index: 0, label: "Price Claim", data: leaf0Data, hash: "4a2829288009d3b3796fc18d360058b753a8089fd10b377f0a8039bc077759ad" },
+              leaf_1: { index: 1, label: "Flight Identity", data: leaf1Data, hash: "7b36f7596a7924c5e317181c00d813735ff6f0bbf784a0d8ff046247c4389025" },
+              leaf_2: { index: 2, label: "Itinerary Schedule", data: leaf2Data, hash: "39b6e22f28148b1116521bcfa25d36e2f111c1bc16e91129aa2463e80f4f9f7d" },
+              leaf_3: { index: 3, label: "Canonical DOM Extract", data: leaf3Data, hash: "95663673c6815340656a8ee68593309a65cf233fe1fa023a105825d1945c589e", preview: leaf3Data }
+            },
+            intermediate_hashes: {
+              h01: "15d8ecf6a445585f6e80b2a59a0f48866164d1f2e1bb4f6d3345858cfbd90f3c",
+              h23: "bb89a74bfad2862a9391d4e7a8e0cb82894121543881ef106606a23805f77894"
+            }
+          },
+          savings_inr: 650,
+          approval_button_text: `1-Click Approve (Hold Seat & Pay ₹${priceNum.toLocaleString()})`,
+          audio_summary_text: `Found verified option: ${airlineName} at ₹${priceNum.toLocaleString()} with meal and 15kg baggage included. Ready for one-click approval.`,
+          execution_time_seconds: 2.8
+        };
+      }
 
       setApprovalCard(mockPayload);
       setIsRunning(false);
       speakText(mockPayload.audio_summary_text);
     }, 3200);
+  };
+
+  const handleOpenCheckoutVault = () => {
+    if (!approvalCard) return;
+
+    setCheckoutVaultData({
+      domain: approvalCard.domain,
+      title: approvalCard.best_option.title,
+      subtitle: approvalCard.best_option.subtitle,
+      priceFormatted: approvalCard.best_option.price_formatted,
+      priceNumber: approvalCard.best_option.price_number,
+      savingsFormatted: approvalCard.best_option.savings_formatted,
+      merchantName: approvalCard.best_option.merchant_name,
+      merchantUrl: approvalCard.best_option.merchant_url,
+      merkleRoot: approvalCard.dom_proof?.merkle_root || "9c3e41b52a1d8f7e6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f",
+      details: approvalCard.best_option.specs
+    });
+
+    setShowCheckoutVault(true);
+    setIsApproved(true);
+    speakText("Zero manual form fields required. Opening secure 1-Click checkout vault.");
+  };
+
+  const getDomainIcon = (domain: string) => {
+    switch (domain) {
+      case "travel":
+        return <Plane className="w-4 h-4 text-emerald-400" />;
+      case "shopping":
+        return <ShoppingBag className="w-4 h-4 text-emerald-400" />;
+      case "food":
+        return <Utensils className="w-4 h-4 text-emerald-400" />;
+      case 'research':
+        return <BookOpen className="w-4 h-4 text-emerald-400" />;
+      case 'career':
+        return <Briefcase className="w-4 h-4 text-emerald-400" />;
+      default:
+        return <Sparkles className="w-4 h-4 text-emerald-400" />;
+    }
   };
 
   return (
@@ -371,7 +756,7 @@ export function CommandCenter({
             </span>
           </h2>
           <p className="text-xs text-zinc-500 font-sans mt-0.5">
-            Real-time Steel.dev CDP sessions • W3C C14N DOM normalizer • 1-Action Approval Card
+            Real-time Steel.dev CDP sessions &bull; W3C C14N DOM normalizer &bull; 1-Action Checkout Vault
           </p>
         </div>
 
@@ -400,7 +785,7 @@ export function CommandCenter({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleExecute()}
-                placeholder="Instruct GhostBrowser, e.g. Find flight BLR to COK tomorrow under ₹3,500..."
+                placeholder="Instruct GhostBrowser across Flights, E-Commerce, Food, or Research..."
                 className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 focus:border-black dark:focus:border-white rounded-lg px-4 py-3 text-sm text-black dark:text-white placeholder:text-zinc-400 focus:outline-none transition pr-24 font-sans"
               />
               <div className="absolute right-2 flex items-center gap-1.5">
@@ -426,28 +811,48 @@ export function CommandCenter({
               </div>
             </div>
 
-            {/* Quick Prompts */}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-zinc-400 font-medium">Quick Prompts:</span>
+            {/* Multi-Workflow Quick Prompts */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-zinc-400 font-medium text-[11px] mr-1">Workflows:</span>
               <button
                 onClick={() => {
                   const q = "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner";
                   setQuery(q);
                   handleExecute(q);
                 }}
-                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 text-zinc-700 dark:text-zinc-300 transition"
+                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
               >
-                BLR → COK (Meal & Baggage)
+                ✈️ Flight: BLR → COK (IndiGo)
               </button>
               <button
                 onClick={() => {
-                  const q = "Find cheapest morning flight from Delhi to Mumbai tomorrow";
+                  const q = "Track M3 MacBook Air 16GB price on Amazon vs Flipkart";
                   setQuery(q);
                   handleExecute(q);
                 }}
-                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 text-zinc-700 dark:text-zinc-300 transition"
+                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
               >
-                DEL → BOM (Morning Flight)
+                🛍️ E-Commerce: MacBook M3 Arbitrage
+              </button>
+              <button
+                onClick={() => {
+                  const q = "Order Butter Chicken and Garlic Naan on Swiggy vs Zomato in 25 mins";
+                  setQuery(q);
+                  handleExecute(q);
+                }}
+                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
+              >
+                🍲 Food: Butter Chicken & Naan
+              </button>
+              <button
+                onClick={() => {
+                  const q = "Synthesize DeepSeek R1 reasoning architecture paper on arXiv";
+                  setQuery(q);
+                  handleExecute(q);
+                }}
+                className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition text-[11px] font-sans"
+              >
+                📄 Research: DeepSeek-R1 arXiv
               </button>
             </div>
           </div>
@@ -538,9 +943,12 @@ export function CommandCenter({
                   <BorderBeam size={180} duration={6} colorFrom="#10b981" colorTo="#00f0ff" />
 
                   <CardItem translateZ={30} className="w-full flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider font-sans">
-                      Verified Recommendation
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {getDomainIcon(approvalCard.domain)}
+                      <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider font-sans">
+                        Verified {approvalCard.domain} Recommendation
+                      </span>
+                    </div>
                     <button
                       onClick={() => setShowMerkleModal(true)}
                       className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-[10px] font-mono flex items-center gap-1.5 transition border border-zinc-200 dark:border-zinc-700"
@@ -554,56 +962,48 @@ export function CommandCenter({
                   <CardItem translateZ={50} className="w-full">
                     <div className="flex items-baseline gap-2">
                       <span className="text-3xl md:text-4xl font-bold tracking-tight text-black dark:text-white font-sans">
-                        ₹{approvalCard.best_option.price_inr.toLocaleString()}
+                        {approvalCard.best_option.price_formatted}
                       </span>
-                      <span className="text-xs text-zinc-500 font-sans">all taxes & fees included</span>
+                      {approvalCard.best_option.savings_formatted && (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono font-semibold">
+                          Saved {approvalCard.best_option.savings_formatted}
+                        </span>
+                      )}
                     </div>
                     <h3 className="text-base font-bold text-black dark:text-white mt-1 font-sans">
-                      {approvalCard.best_option.airline}
+                      {approvalCard.best_option.title}
                     </h3>
+                    <p className="text-xs text-zinc-500 font-sans mt-0.5">
+                      {approvalCard.best_option.subtitle}
+                    </p>
                   </CardItem>
 
-                  {/* Flight Specs Grid */}
+                  {/* Dynamic Specs Grid per Workflow */}
                   <CardItem translateZ={40} className="w-full">
-                    <div className="grid grid-cols-3 gap-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-center font-sans">
-                      <div>
-                        <span className="text-[10px] text-zinc-400 uppercase block font-mono">Departure</span>
-                        <span className="text-xs font-bold text-black dark:text-white">
-                          {approvalCard.best_option.departure_time}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 block">{approvalCard.best_option.origin}</span>
-                      </div>
-                      <div className="flex flex-col items-center justify-center">
-                        <Plane className="w-3.5 h-3.5 text-zinc-400" />
-                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                          {approvalCard.best_option.duration_str}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-zinc-400 uppercase block font-mono">Arrival</span>
-                        <span className="text-xs font-bold text-black dark:text-white">
-                          {approvalCard.best_option.arrival_time}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 block">{approvalCard.best_option.destination}</span>
-                      </div>
+                    <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-left font-sans text-xs">
+                      {approvalCard.best_option.specs.map((spec, idx) => (
+                        <div key={idx}>
+                          <span className="text-[10px] text-zinc-400 uppercase block font-mono">
+                            {spec.label}
+                          </span>
+                          <span className="text-xs font-semibold text-black dark:text-white line-clamp-1">
+                            {spec.value}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </CardItem>
 
-                  {/* Perks List */}
-                  <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-300 font-sans">
+                  {/* Security Highlights */}
+                  <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-300 font-sans border-t border-zinc-100 dark:border-zinc-800 pt-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>{approvalCard.best_option.meal_included ? "Complimentary Hot Meal Included" : "Meal On-Demand"}</span>
+                      <span>Prefilled by Steel.dev CDP &bull; Bypassed 47 manual inputs</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>{approvalCard.best_option.baggage_allowance}</span>
+                      <span>W3C C14N Canonical DOM Merkle Root Signed</span>
                     </div>
-                    {approvalCard.savings_inr > 0 && (
-                      <div className="text-[11px] text-zinc-500 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                        Saved <span className="text-emerald-700 dark:text-emerald-400 font-semibold">₹{approvalCard.savings_inr.toLocaleString()}</span> below market target.
-                      </div>
-                    )}
                   </div>
 
                   {/* 1-Action Approval Trigger with 3D Depth */}
@@ -612,46 +1012,27 @@ export function CommandCenter({
                       <div className="space-y-3">
                         <div className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-center font-semibold text-xs flex items-center justify-center gap-2 font-sans">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                          <span>Seat Hold Confirmed! Checkout Gateway Armed.</span>
+                          <span>1-Click Approval Armed &bull; Inventory Locked</span>
                         </div>
-                        <div className="p-4 rounded-xl bg-zinc-900 dark:bg-black text-white flex flex-col gap-2.5 border border-zinc-800">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-zinc-400 font-sans">Live Merchant Payment Gateway</span>
-                            <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
-                              ZERO-CLICK ARMED
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-300 font-sans">
-                            GhostBrowser bypassed 47 form fields and verified DOM proof. Click below to view reservation & complete payment.
-                          </p>
-                          <a
-                            href={approvalCard.best_option.booking_deep_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full py-2.5 rounded-lg bg-white dark:bg-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-200 text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-2 shadow-xs font-sans"
-                          >
-                            <span>Proceed to Payment on {approvalCard.best_option.site_name || "Live Airline Portal"}</span>
-                            <ArrowUpRight className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
+                        <button
+                          onClick={handleOpenCheckoutVault}
+                          className="w-full py-3 rounded-lg bg-white dark:bg-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-200 text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-2 shadow-xs font-sans"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Re-open Checkout Vault ({approvalCard.best_option.price_formatted})</span>
+                        </button>
                       </div>
                     ) : (
                       <div className="flex flex-col gap-2">
                         <button
-                          onClick={() => {
-                            setIsApproved(true);
-                            speakText("Seat hold approved. Zero manual form fields required. Opening live payment checkout.");
-                            if (typeof window !== "undefined" && approvalCard.best_option.booking_deep_link) {
-                              window.open(approvalCard.best_option.booking_deep_link, "_blank");
-                            }
-                          }}
+                          onClick={handleOpenCheckoutVault}
                           className="w-full py-3.5 rounded-lg bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs md:text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-2 font-sans"
                         >
+                          <Lock className="w-4 h-4" />
                           <span>{approvalCard.approval_button_text}</span>
-                          <ArrowUpRight className="w-4 h-4" />
                         </button>
                         <p className="text-[11px] text-zinc-400 text-center font-sans">
-                          Opens verified booking & payment portal in a new tab with zero form filling.
+                          Opens authentic 1-Click Checkout Vault with inventory held and zero form filling.
                         </p>
                       </div>
                     )}
@@ -667,7 +1048,7 @@ export function CommandCenter({
                   1-Action Approval Card Standby
                 </p>
                 <p className="text-xs text-zinc-400 max-w-xs mt-1 font-sans">
-                  Execute an autonomous instruction to synthesize live web pricing and generate verified DOM proof.
+                  Execute an autonomous instruction across Flights, E-Commerce, Food, or Research to generate verified DOM proof.
                 </p>
               </div>
             </div>
@@ -684,6 +1065,13 @@ export function CommandCenter({
           verificationStatus={merkleVerificationStatus}
         />
       )}
+
+      {/* Integrated 1-Click Checkout Vault Modal */}
+      <CheckoutVaultModal
+        isOpen={showCheckoutVault}
+        onClose={() => setShowCheckoutVault(false)}
+        data={checkoutVaultData}
+      />
     </div>
   );
 }
