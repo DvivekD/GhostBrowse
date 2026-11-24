@@ -3,6 +3,8 @@
 import React from "react";
 import { ArrowUpRight, Mic, Sparkles, ShieldCheck, Zap, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { BorderBeam } from "@/components/ui/border-beam";
+import { ParticleMesh } from "@/components/ui/particle-mesh";
 
 interface HeroSectionProps {
   onExecuteQuery: (query: string) => void;
@@ -26,7 +28,9 @@ export function HeroSection({
   };
 
   return (
-    <div className="flex flex-col items-center text-center max-w-4xl mx-auto px-4 pt-12 md:pt-20 pb-8">
+    <div className="relative flex flex-col items-center text-center max-w-4xl mx-auto px-4 pt-12 md:pt-20 pb-8 overflow-hidden">
+      {/* Interactive Background Particle Mesh */}
+      <ParticleMesh particleCount={30} />
       {/* Track & Hackathon Pre-header Badge */}
       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xs mb-6 transition-transform hover:scale-[1.02]">
         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
@@ -49,9 +53,10 @@ export function HeroSection({
         Convert natural language intent into verified <strong className="text-black dark:text-white font-semibold">1-Action Approval Cards</strong> with cryptographic W3C C14N DOM proofs. Bypassing 47 tedious form fields with human-in-the-loop financial safety.
       </p>
 
-      {/* Hero Quick Prompt Bar */}
-      <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-2xl p-2 shadow-lg mb-4">
-        <div className="relative flex items-center">
+      {/* Hero Quick Prompt Bar with Reactive Border Beam */}
+      <div className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-2xl p-2 shadow-lg mb-4 overflow-hidden group">
+        <BorderBeam size={160} colorFrom="#10b981" colorTo="#00f0ff" duration={6} />
+        <div className="relative flex items-center z-10">
           <input
             type="text"
             value={query}

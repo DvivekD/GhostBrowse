@@ -1,395 +1,594 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { motion, useScroll, useMotionValueEvent, AnimatePresence } from "motion/react";
-import {
-  Mic,
-  Terminal,
-  Cpu,
-  Globe,
-  ShieldCheck,
-  CheckCircle2,
-  ArrowUpRight,
+import { useScroll, useMotionValueEvent, motion, AnimatePresence } from "motion/react";
+import { 
+  Bot, 
+  Mic, 
+  Sparkles, 
+  Cpu, 
+  ShieldCheck, 
+  Terminal, 
+  CheckCircle2, 
+  Lock, 
+  Layers, 
+  ArrowRight, 
+  Radio, 
+  Activity, 
+  Shield, 
+  Fingerprint, 
+  Check, 
+  ExternalLink,
+  ChevronRight,
   Plane,
-  Sparkles,
-  Lock,
-  Layers,
+  Zap
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface ScrollStep {
-  id: string;
-  stepNumber: string;
-  title: string;
-  subtitle: string;
-  description: string;
+interface PhaseData {
+  id: number;
+  label: string;
   badge: string;
+  title: string;
+  description: string;
 }
 
-const STEPS: ScrollStep[] = [
+const PHASES: PhaseData[] = [
   {
-    id: "intent",
-    stepNumber: "01",
-    title: "Zero-Click Natural Intent Ingestion",
-    subtitle: "Raw Audio & Text Capture",
-    description: "Speak or type high-level human goals with ambiguous constraints. GhostBrowser eliminates 47 tedious form fields with instant multimodal intent ingestion.",
-    badge: "DEEPGRAM NOVA-3 STT",
+    id: 1,
+    label: "01. INGEST",
+    badge: "Natural Language STT",
+    title: "Intent Ingestion & Slot Extraction",
+    description: "Deepgram Nova-3 transcribes voice audio in <80ms. GhostBrowser parses unconstrained intent into strict cryptographic execution constraints."
   },
   {
-    id: "reasoning",
-    stepNumber: "02",
-    title: "4-Tier Multi-Brain Reasoning Cascade",
-    subtitle: "Sub-50ms Hardware Acceleration",
-    description: "SambaNova SN40L RDUs run full 671B reasoning at 450 t/s, decomposing intent into structured parameters (origin, destination, date, meal, budget) before cascading to Gemini 3.8 and Groq.",
-    badge: "SAMBANOVA RDU @ 450 T/S",
+    id: 2,
+    label: "02. REASON",
+    badge: "4-Tier Cascade",
+    title: "SambaNova SN40L Cascade Reasoning",
+    description: "Llama-3.3-70B running at 450 tokens/sec on Reconfigurable Dataflow Units (RDU) plans 3 parallel browser execution vectors with 0 human intervention."
   },
   {
-    id: "execution",
-    stepNumber: "03",
-    title: "Steel.dev Cloud Stealth Fleet",
-    subtitle: "Parallel Anti-Bot CDP Execution",
-    description: "Spins up 3 parallel headless Chromium sessions over WebSocket CDP. Bypasses Cloudflare Turnstile and DataDome, extracting live DOM structures across target airlines.",
-    badge: "3 PARALLEL CONTEXTS",
+    id: 3,
+    label: "03. NAVIGATE",
+    badge: "Steel.dev CDP Fleet",
+    title: "Parallel Stealth Browser Execution",
+    description: "Three isolated headless Chrome sessions navigate Google Flights, Skyscanner, and Kayak, bypassing Cloudflare Turnstile with native C++ fingerprint spoofing."
   },
   {
-    id: "merkle",
-    stepNumber: "04",
-    title: "Cryptographic C14N Merkle Proof",
-    subtitle: "Deterministic Ground Truth & 1-Click Pay",
-    description: "W3C C14N normalizes HTML into a 4-leaf SHA-256 Merkle Tree verified client-side. The 1-Action Approval Card locks in the verified price with live airline checkout pre-armed.",
-    badge: "W3C C14N MERKLE ROOT",
-  },
+    id: 4,
+    label: "04. VERIFY & APPROVE",
+    badge: "W3C C14N Merkle Proof",
+    title: "4-Leaf Merkle Proof & 1-Action Approval",
+    description: "W3C C14N DOM normalization strips volatile artifacts, computing a tamper-proof 4-leaf SHA-256 Merkle root. One click confirms the action without 47 form fields."
+  }
 ];
 
 export function ScrollDrivenDemo() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [activeStep, setActiveStep] = useState(0);
+  const [activePhase, setActivePhase] = useState<number>(0);
+  const [seatHeld, setSeatHeld] = useState<boolean>(false);
+  const [scrollPercent, setScrollPercent] = useState<number>(0);
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ["start start", "end end"],
+    offset: ["start start", "end end"]
   });
 
   useMotionValueEvent(scrollYProgress, "change", (latest) => {
+    setScrollPercent(Math.round(latest * 100));
     if (latest < 0.25) {
-      setActiveStep(0);
-    } else if (latest < 0.52) {
-      setActiveStep(1);
-    } else if (latest < 0.78) {
-      setActiveStep(2);
+      setActivePhase(0);
+    } else if (latest < 0.50) {
+      setActivePhase(1);
+    } else if (latest < 0.75) {
+      setActivePhase(2);
     } else {
-      setActiveStep(3);
+      setActivePhase(3);
     }
   });
 
-  const jumpToInteractive = () => {
-    const el = document.getElementById("command-center");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+  const scrollToPhase = (phaseIndex: number) => {
+    if (!containerRef.current) return;
+    const containerTop = containerRef.current.offsetTop;
+    const containerHeight = containerRef.current.offsetHeight;
+    const targetScroll = containerTop + (phaseIndex / 3.5) * (containerHeight - window.innerHeight);
+    window.scrollTo({ top: targetScroll, behavior: "smooth" });
   };
 
-  return (
-    <section ref={containerRef} className="relative h-[320vh] bg-[#fafafa] dark:bg-[#09090b] text-[#09090b] dark:text-[#fafafa]">
-      {/* Sticky Full-Viewport Stage */}
-      <div className="sticky top-0 h-screen flex flex-col justify-center px-4 md:px-8 max-w-7xl mx-auto overflow-hidden">
-        {/* Section Pre-Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-800 mb-6">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-mono text-xs uppercase tracking-wider text-zinc-500">
-              Scroll-Driven Execution Lifecycle
-            </span>
-          </div>
-          <button
-            onClick={jumpToInteractive}
-            className="text-xs font-sans text-zinc-500 hover:text-black dark:hover:text-white flex items-center gap-1 transition"
-          >
-            <span>Skip to Live Playground</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+  const currentPhase = PHASES[activePhase];
 
-        {/* 2-Column Scrollytelling Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Column: Progress Steps (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col gap-5">
-            {STEPS.map((step, idx) => {
-              const isActive = activeStep === idx;
+  return (
+    <section 
+      ref={containerRef} 
+      id="how-it-works"
+      className="relative h-[320vh] md:h-[380vh] w-full bg-[#fafafa] dark:bg-[#09090b] transition-colors"
+    >
+      {/* Sticky Viewport Container */}
+      <div className="sticky top-0 h-screen w-full flex flex-col justify-between py-6 md:py-10 px-4 md:px-8 max-w-7xl mx-auto overflow-hidden">
+        
+        {/* Top Header & Phase Navigation Stepper */}
+        <div className="flex flex-col items-center gap-3 z-20">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
+            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+            <span className="font-semibold text-black dark:text-white uppercase tracking-wider">
+              Scroll-Driven Autonomous Pipeline
+            </span>
+            <span className="text-zinc-400 dark:text-zinc-600">•</span>
+            <span>{scrollPercent}% Scrolled</span>
+          </div>
+
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-black dark:text-white text-center font-sans">
+            How GhostBrowser Executes <span className="underline decoration-cyan-500 decoration-2">Beyond the Browser</span>
+          </h2>
+
+          {/* Stepper Tabs Bar (Clickable) */}
+          <div className="flex items-center gap-1.5 md:gap-3 p-1.5 rounded-xl bg-zinc-100/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 backdrop-blur-md max-w-2xl w-full justify-between">
+            {PHASES.map((p, idx) => {
+              const isActive = activePhase === idx;
+              const isPast = activePhase > idx;
               return (
-                <div
-                  key={step.id}
-                  className={`transition-all duration-300 pl-4 border-l-2 ${
-                    isActive
-                      ? "border-black dark:border-white opacity-100 translate-x-1"
-                      : "border-zinc-200 dark:border-zinc-800 opacity-40 hover:opacity-70"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs font-bold text-zinc-400">
-                      {step.stepNumber}
-                    </span>
-                    <span className="font-mono text-[10px] uppercase px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
-                      {step.badge}
-                    </span>
-                  </div>
-                  <h3 className="text-lg md:text-xl font-bold font-sans tracking-tight text-black dark:text-white">
-                    {step.title}
-                  </h3>
-                  {isActive && (
-                    <motion.p
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="text-xs text-zinc-500 dark:text-zinc-400 font-sans mt-1.5 leading-relaxed"
-                    >
-                      {step.description}
-                    </motion.p>
+                <button
+                  key={p.id}
+                  onClick={() => scrollToPhase(idx)}
+                  className={cn(
+                    "flex-1 py-1.5 md:py-2 px-2 rounded-lg text-center font-mono text-[10px] md:text-xs transition-all relative cursor-pointer",
+                    isActive 
+                      ? "bg-white dark:bg-black text-black dark:text-white shadow-xs font-bold border border-zinc-300 dark:border-zinc-700" 
+                      : isPast
+                        ? "text-emerald-600 dark:text-emerald-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+                        : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                   )}
-                </div>
+                >
+                  <div className="flex items-center justify-center gap-1.5">
+                    {isPast && <Check className="w-3 h-3 text-emerald-500" />}
+                    <span>{p.label}</span>
+                  </div>
+                  {isActive && (
+                    <motion.div 
+                      layoutId="active-scroll-tab"
+                      className="absolute -bottom-1.5 left-2 right-2 h-0.5 bg-cyan-500 rounded-full"
+                    />
+                  )}
+                </button>
               );
             })}
           </div>
+        </div>
 
-          {/* Right Column: Dynamically Updating Browser Mockup (7 cols) */}
-          <div className="lg:col-span-7">
-            <div className="relative w-full rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl overflow-hidden p-2 md:p-4">
-              {/* Browser Header Bar */}
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800 px-2 font-mono text-[11px] text-zinc-400">
+        {/* Center: Dynamic Browser Viewport Mockup */}
+        <div className="w-full max-w-5xl mx-auto my-auto z-10 flex flex-col">
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl overflow-hidden transition-all duration-300">
+            
+            {/* Browser Bezel Header */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 font-mono text-xs">
+              <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-400/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
+                  <span className="w-3 h-3 rounded-full bg-red-400/80 inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-yellow-400/80 inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-green-400/80 inline-block" />
                 </div>
-                <div className="flex items-center gap-2 px-3 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px]">
-                  <Lock className="w-3 h-3 text-emerald-500" />
-                  <span>ghostbrowser://execution-stream/{STEPS[activeStep].id}</span>
-                </div>
-                <div className="text-[10px] font-bold text-zinc-500">
-                  STEP 0{activeStep + 1} / 04
+                <div className="hidden sm:flex items-center gap-1.5 pl-2 text-[11px] text-zinc-400 border-l border-zinc-300 dark:border-zinc-700">
+                  <Bot className="w-3.5 h-3.5 text-cyan-500" />
+                  <span>GhostBrowser Kernel v1.0</span>
                 </div>
               </div>
 
-              {/* Dynamic Screen States Cross-Faded on Scroll */}
-              <div className="relative min-h-[340px] md:min-h-[380px] p-4 flex flex-col justify-center">
-                <AnimatePresence mode="wait">
-                  {/* State 1: Natural Intent Ingestion */}
-                  {activeStep === 0 && (
-                    <motion.div
-                      key="step-0"
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
-                      transition={{ duration: 0.3 }}
-                      className="flex flex-col gap-4"
-                    >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-400 uppercase font-mono text-[10px]">Natural Voice / Text Prompt</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[10px] flex items-center gap-1">
-                          <Mic className="w-3 h-3 animate-pulse" /> LISTENING (NOVA-3)
+              {/* Dynamic URL Bar */}
+              <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 text-[11px] text-zinc-600 dark:text-zinc-300 font-mono shadow-2xs max-w-md w-full justify-center">
+                <Lock className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                <span className="truncate">
+                  ghostbrowser://pipeline/{currentPhase.badge.toLowerCase().replace(/\s+/g, "-")}
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-400 uppercase">
+                  TLS 1.3
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="hidden sm:inline">Steel.dev Live</span>
+              </div>
+            </div>
+
+            {/* Dynamic Stage Content Area */}
+            <div className="p-4 sm:p-6 md:p-8 min-h-[380px] sm:min-h-[420px] flex flex-col justify-center bg-zinc-50/50 dark:bg-zinc-950/50">
+              <AnimatePresence mode="wait">
+                
+                {/* PHASE 1: INTENT INGESTION */}
+                {activePhase === 0 && (
+                  <motion.div
+                    key="phase-1"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-6"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-4">
+                      <div>
+                        <span className="text-xs font-mono font-bold text-cyan-500 uppercase tracking-wider">
+                          Phase 01 // Voice & Natural Language Ingestion
                         </span>
+                        <h3 className="text-lg md:text-xl font-bold text-black dark:text-white mt-0.5">
+                          Deepgram Nova-3 Audio Token Streaming
+                        </h3>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
+                        <Activity className="w-4 h-4 text-emerald-500 animate-pulse" />
+                        <span>Latency: 76ms • Word Error Rate &lt; 2.8%</span>
+                      </div>
+                    </div>
+
+                    {/* Simulated Audio Waveform Bar */}
+                    <div className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-4 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 animate-pulse">
+                          <Mic className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-mono text-zinc-400">Captured Audio Stream</div>
+                          <div className="text-sm md:text-base font-semibold text-black dark:text-white">
+                            &quot;Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner&quot;
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-inner flex items-center gap-3">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                        <span className="font-sans text-sm md:text-base font-semibold text-black dark:text-white">
-                          "Find a flight from Bangalore to Kochi tomorrow under ₹3,500 with dinner"
-                        </span>
-                      </div>
-
-                      {/* Waveform Visualization */}
-                      <div className="flex items-center justify-center gap-1.5 py-4">
-                        {[40, 75, 20, 90, 60, 30, 85, 45, 95, 65, 35, 80, 50, 70, 40].map((h, i) => (
-                          <div
+                      {/* Equalizer Visualizer Bars */}
+                      <div className="hidden md:flex items-center gap-1">
+                        {[40, 75, 100, 60, 85, 30, 95, 50, 70, 90, 45, 65].map((h, i) => (
+                          <motion.span
                             key={i}
-                            className="w-1.5 bg-black dark:bg-white rounded-full transition-all duration-300"
-                            style={{ height: `${h * 0.4}px` }}
+                            animate={{ height: [`${h * 0.3}px`, `${h * 0.4}px`, `${h * 0.2}px`] }}
+                            transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.08 }}
+                            className="w-1 bg-cyan-500 rounded-full inline-block"
+                            style={{ height: `${h * 0.35}px` }}
                           />
                         ))}
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                        <div className="p-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                          Route: Bangalore (BLR) → Kochi (COK)
+                    {/* Extracted Slots Breakdown */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-xs font-mono text-zinc-500 uppercase tracking-wider">
+                        Extracted Cryptographic Execution Constraints
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <div className="p-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          <span className="text-[10px] font-mono text-zinc-400 uppercase block">Route</span>
+                          <span className="text-sm font-bold text-black dark:text-white">BLR → COK</span>
                         </div>
-                        <div className="p-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                          Constraint: Under ₹3,500 + Hot Meal
+                        <div className="p-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          <span className="text-[10px] font-mono text-zinc-400 uppercase block">Departure</span>
+                          <span className="text-sm font-bold text-black dark:text-white">Tomorrow</span>
+                        </div>
+                        <div className="p-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          <span className="text-[10px] font-mono text-zinc-400 uppercase block">Budget Cap</span>
+                          <span className="text-sm font-bold text-emerald-500">≤ ₹3,500</span>
+                        </div>
+                        <div className="p-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          <span className="text-[10px] font-mono text-zinc-400 uppercase block">Mandatory Perk</span>
+                          <span className="text-sm font-bold text-cyan-500">Meal Included</span>
                         </div>
                       </div>
-                    </motion.div>
-                  )}
+                    </div>
+                  </motion.div>
+                )}
 
-                  {/* State 2: 4-Tier Reasoning Cascade */}
-                  {activeStep === 1 && (
-                    <motion.div
-                      key="step-1"
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
-                      transition={{ duration: 0.3 }}
-                      className="flex flex-col gap-3 font-mono"
-                    >
-                      <div className="flex items-center justify-between text-xs pb-1 border-b border-zinc-100 dark:border-zinc-800">
-                        <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
-                          <Terminal className="w-3.5 h-3.5" />
-                          <span>4-Tier Reasoning Trace</span>
-                        </div>
-                        <span className="text-emerald-600 dark:text-emerald-400 text-[10px]">
-                          ~38ms TTFT
+                {/* PHASE 2: 4-TIER REASONING CASCADE */}
+                {activePhase === 1 && (
+                  <motion.div
+                    key="phase-2"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-5"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-4">
+                      <div>
+                        <span className="text-xs font-mono font-bold text-emerald-500 uppercase tracking-wider">
+                          Phase 02 // 4-Tier Reasoning Cascade
                         </span>
+                        <h3 className="text-lg md:text-xl font-bold text-black dark:text-white mt-0.5">
+                          SambaNova Cloud SN40L Execution Plan (450 t/s)
+                        </h3>
                       </div>
-
-                      <div className="space-y-1.5 text-xs text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-950 p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                        <div className="text-zinc-400">› [Tier 1 SambaNova RDU] Parsing prompt intent...</div>
-                        <div className="text-emerald-600 dark:text-emerald-400">
-                          › Intent Decomposed: Origin=BLR, Destination=COK, Date=Tomorrow
-                        </div>
-                        <div className="text-zinc-500">
-                          › Preferences: [meal_included=true, budget=3500, class=Economy]
-                        </div>
-                        <div className="text-blue-500">
-                          › [Gemini 3.8 / Groq Cascade] Strategy: Dispatched 3 parallel stealth browser contexts.
-                        </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 font-mono text-xs">
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>38ms Time-To-First-Token</span>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
-                        <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-center text-emerald-800 dark:text-emerald-300 font-bold">
-                          SambaNova SN40L
-                        </div>
-                        <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-center text-blue-800 dark:text-blue-300 font-bold">
-                          Gemini 3.8 Flash
-                        </div>
-                        <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-center text-purple-800 dark:text-purple-300 font-bold">
-                          Groq LPU 120B
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* State 3: Steel.dev CDP Stealth Fleet */}
-                  {activeStep === 2 && (
-                    <motion.div
-                      key="step-2"
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
-                      transition={{ duration: 0.3 }}
-                      className="flex flex-col gap-3 font-sans"
-                    >
-                      <div className="flex items-center justify-between text-xs pb-1 border-b border-zinc-100 dark:border-zinc-800">
-                        <div className="flex items-center gap-1.5 font-bold text-black dark:text-white">
-                          <Globe className="w-3.5 h-3.5 text-blue-500" />
-                          <span>Steel.dev Cloud CDP WebSocket Live Extraction</span>
-                        </div>
-                        <span className="font-mono text-[10px] text-zinc-400">3 ACTIVE SESSIONS</span>
-                      </div>
-
-                      {/* 3 Live Worker Bars */}
-                      <div className="space-y-2.5">
-                        <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-1.5">
-                          <div className="flex justify-between text-xs font-semibold">
-                            <span>Google Flights (Stealth Context 1)</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[11px]">100% Extracted</span>
-                          </div>
-                          <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-emerald-500 h-1.5 rounded-full w-full" />
-                          </div>
-                          <span className="text-[10px] font-mono text-zinc-500">
-                            Found IndiGo 6E-243 @ ₹2,850 • Meal & Baggage Verified • 105.5 KB DOM
-                          </span>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-1.5">
-                          <div className="flex justify-between text-xs font-semibold">
-                            <span>Skyscanner (Stealth Context 2)</span>
-                            <span className="text-blue-600 dark:text-blue-400 font-mono text-[11px]">Bypassed Bot Gate</span>
-                          </div>
-                          <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-blue-500 h-1.5 rounded-full w-[85%]" />
-                          </div>
-                          <span className="text-[10px] font-mono text-zinc-500">
-                            Akasa Air QP-1382 @ ₹3,120 (₹270 higher than Google Flights)
-                          </span>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-1.5">
-                          <div className="flex justify-between text-xs font-semibold">
-                            <span>Kayak (Stealth Context 3)</span>
-                            <span className="text-zinc-500 font-mono text-[11px]">Complete</span>
-                          </div>
-                          <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-zinc-400 h-1.5 rounded-full w-full" />
-                          </div>
-                          <span className="text-[10px] font-mono text-zinc-500">
-                            Air India Express @ ₹3,350 • Synthesizing winner
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* State 4: Cryptographic Proof & 1-Action Approval Card */}
-                  {activeStep === 3 && (
-                    <motion.div
-                      key="step-3"
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
-                      transition={{ duration: 0.3 }}
-                      className="flex flex-col gap-3 font-sans"
-                    >
-                      <div className="flex items-center justify-between text-xs pb-1 border-b border-zinc-100 dark:border-zinc-800">
-                        <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono text-[10px] flex items-center gap-1">
-                          <ShieldCheck className="w-3.5 h-3.5" /> 4-LEAF MERKLE ROOT VALID
-                        </span>
-                        <span className="font-mono text-[10px] text-zinc-400">100% CRYPTOGRAPHIC GROUND TRUTH</span>
-                      </div>
-
-                      {/* Verified 1-Action Approval Card */}
-                      <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 border-2 border-black dark:border-white shadow-md flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-2xl font-bold text-black dark:text-white">
-                            ₹2,850
-                          </span>
-                          <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-semibold border border-emerald-300">
-                            SAVED ₹650
-                          </span>
-                        </div>
-
+                    {/* 4-Tier Cascade Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {/* Tier 1 */}
+                      <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex flex-col justify-between gap-2">
                         <div>
-                          <h4 className="text-sm font-bold text-black dark:text-white">
-                            IndiGo 6E-243 • Bangalore (BLR) → Kochi (COK)
-                          </h4>
-                          <p className="text-xs text-zinc-500 mt-0.5">
-                            06:15 AM - 07:30 AM (1h 15m) • Hot Meal & 15kg Baggage Included
-                          </p>
-                        </div>
-
-                        {/* Merkle Leaf Digest Preview */}
-                        <div className="p-2.5 rounded-lg bg-zinc-900 text-white font-mono text-[10px] flex flex-col gap-1">
-                          <div className="flex justify-between text-zinc-400">
-                            <span>W3C C14N MERKLE ROOT</span>
-                            <span className="text-emerald-400">9c3e...4e3f</span>
+                          <div className="flex items-center justify-between text-xs font-mono font-bold text-emerald-500">
+                            <span>TIER 1 (ACTIVE)</span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                           </div>
-                          <div className="text-zinc-500 truncate">
-                            Leaves: [Price: ₹2,850] [IndiGo 6E-243] [BLR-COK] [DOM: 105,502 bytes]
-                          </div>
+                          <div className="text-sm font-bold text-black dark:text-white mt-1">SambaNova SN40L</div>
+                          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Llama-3.3-70B RDU Engine</div>
                         </div>
-
-                        {/* Armed 1-Action Approval Trigger */}
-                        <a
-                          href="https://www.google.com/travel/flights?q=flights+from+BLR+to+COK"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full py-2.5 rounded-lg bg-black dark:bg-white text-white dark:text-black font-semibold text-xs tracking-tight transition flex items-center justify-center gap-1.5 hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-sm"
-                        >
-                          <span>1-Click Approve (Hold Seat & Open Checkout)</span>
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                        </a>
+                        <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 pt-2 border-t border-emerald-500/20">
+                          Speed: 450 tokens/s
+                        </div>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+
+                      {/* Tier 2 */}
+                      <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-2">
+                        <div>
+                          <div className="text-xs font-mono font-bold text-zinc-400">TIER 2 (READY)</div>
+                          <div className="text-sm font-bold text-black dark:text-white mt-1">Gemini 3.8 Flash</div>
+                          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Multimodal DOM Vision</div>
+                        </div>
+                        <div className="text-[10px] font-mono text-zinc-400 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                          Zero-Shot Layout Parsing
+                        </div>
+                      </div>
+
+                      {/* Tier 3 */}
+                      <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-2">
+                        <div>
+                          <div className="text-xs font-mono font-bold text-zinc-400">TIER 3 (READY)</div>
+                          <div className="text-sm font-bold text-black dark:text-white mt-1">Groq LPU</div>
+                          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Deterministic JSON Output</div>
+                        </div>
+                        <div className="text-[10px] font-mono text-zinc-400 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                          Latency: &lt; 20ms
+                        </div>
+                      </div>
+
+                      {/* Tier 4 */}
+                      <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-2">
+                        <div>
+                          <div className="text-xs font-mono font-bold text-zinc-400">TIER 4 (DETERMINISTIC)</div>
+                          <div className="text-sm font-bold text-black dark:text-white mt-1">W3C C14N Engine</div>
+                          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Deterministic DOM Normalizer</div>
+                        </div>
+                        <div className="text-[10px] font-mono text-zinc-400 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                          100% Cryptographic Parity
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Real-time Thought Console */}
+                    <div className="p-3 rounded-lg bg-black text-zinc-300 font-mono text-xs flex items-center gap-2 border border-zinc-800 overflow-x-auto">
+                      <Terminal className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                      <span className="text-cyan-400 font-bold select-none">[CASCADE PLAN]</span>
+                      <span className="truncate">
+                        Dispatched 3 parallel CDP contexts: Google Flights, Skyscanner, Kayak. Target fare: BLR→COK &lt;= 3500.
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* PHASE 3: STEEL.DEV CDP NAVIGATION */}
+                {activePhase === 2 && (
+                  <motion.div
+                    key="phase-3"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                      <div>
+                        <span className="text-xs font-mono font-bold text-cyan-500 uppercase tracking-wider">
+                          Phase 03 // Steel.dev Cloud Stealth Fleet
+                        </span>
+                        <h3 className="text-lg md:text-xl font-bold text-black dark:text-white mt-0.5">
+                          Multi-Worker CDP Parallel Navigation
+                        </h3>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-mono text-emerald-500">
+                        <Shield className="w-3.5 h-3.5" />
+                        <span>Cloudflare Turnstile Cleared via Camoufox C++</span>
+                      </div>
+                    </div>
+
+                    {/* 3 Active Browser Workers */}
+                    <div className="space-y-2.5">
+                      {/* Worker 1 */}
+                      <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-emerald-500/40 shadow-xs flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between text-xs font-mono">
+                          <span className="font-bold text-black dark:text-white flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Worker 01: Google Flights (Steel.dev Session #082)
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold text-[10px] uppercase">
+                            Extracted &amp; Verified
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
+                          Verified fare: IndiGo 6E-243 @ ₹2,850 • Departure 06:15 AM • Hot Dinner &amp; 15kg baggage verified.
+                        </p>
+                        <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-emerald-500 h-full w-full" />
+                        </div>
+                      </div>
+
+                      {/* Worker 2 */}
+                      <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between text-xs font-mono">
+                          <span className="font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                            Worker 02: Skyscanner Search
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-500 font-semibold text-[10px] uppercase">
+                            Scraped
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-500 font-mono">
+                          Found Akasa Air QP-1382 at ₹3,120 • 08:30 AM • No dinner included.
+                        </p>
+                        <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-cyan-500 h-full w-[88%]" />
+                        </div>
+                      </div>
+
+                      {/* Worker 3 */}
+                      <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between text-xs font-mono">
+                          <span className="font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-zinc-400" />
+                            Worker 03: Kayak Morning Scan
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-500 font-semibold text-[10px] uppercase">
+                            Scraped
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-500 font-mono">
+                          Found Air India Express at ₹3,350 • Exceeds target fare threshold.
+                        </p>
+                        <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-zinc-500 h-full w-[78%]" />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* PHASE 4: MERKLE PROOF & 1-ACTION APPROVAL */}
+                {activePhase === 3 && (
+                  <motion.div
+                    key="phase-4"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.3 }}
+                    className="grid grid-cols-1 lg:grid-cols-12 gap-5"
+                  >
+                    {/* Left: 4-Leaf Merkle Tree Visualizer (6 cols) */}
+                    <div className="lg:col-span-6 flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono font-bold text-emerald-500 uppercase flex items-center gap-1.5">
+                          <Fingerprint className="w-3.5 h-3.5" /> 4-Leaf SHA-256 Merkle Proof
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/30">
+                          ✓ Cryptographically Verified
+                        </span>
+                      </div>
+
+                      {/* Merkle Root Box */}
+                      <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-700 text-white font-mono text-[11px]">
+                        <div className="text-[9px] text-zinc-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Merkle Root (Level 2)</span>
+                          <span className="text-emerald-400">SHA-256</span>
+                        </div>
+                        <div className="font-bold text-emerald-400 truncate mt-0.5">
+                          a0e7c84c04cd88de1a6d604cc754b7bf7096...
+                        </div>
+                      </div>
+
+                      {/* 4 Leaves (Level 0) */}
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                        <div className="p-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          <span className="text-zinc-400 block font-bold">Leaf 0: Price Claim</span>
+                          <span className="text-emerald-500 font-semibold block mt-0.5">CLAIM_PRICE: ₹2,850</span>
+                          <span className="text-zinc-500 text-[9px] truncate block">55bbe6b9...</span>
+                        </div>
+
+                        <div className="p-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          <span className="text-zinc-400 block font-bold">Leaf 1: Flight Identity</span>
+                          <span className="text-cyan-500 font-semibold block mt-0.5">IndiGo 6E-243</span>
+                          <span className="text-zinc-500 text-[9px] truncate block">9433901d...</span>
+                        </div>
+
+                        <div className="p-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          <span className="text-zinc-400 block font-bold">Leaf 2: Route &amp; Perk</span>
+                          <span className="text-black dark:text-white font-semibold block mt-0.5">BLR→COK (Dinner)</span>
+                          <span className="text-zinc-500 text-[9px] truncate block">17f002b8...</span>
+                        </div>
+
+                        <div className="p-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          <span className="text-zinc-400 block font-bold">Leaf 3: Canonical DOM</span>
+                          <span className="text-fuchsia-400 font-semibold block mt-0.5">W3C C14N Clean DOM</span>
+                          <span className="text-zinc-500 text-[9px] truncate block">772c456e...</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Polymorphic 1-Action Approval Card (6 cols) */}
+                    <div className="lg:col-span-6 p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-md flex flex-col justify-between gap-3">
+                      <div>
+                        <div className="flex items-center justify-between text-xs font-mono">
+                          <span className="text-cyan-500 font-bold uppercase tracking-wider">
+                            1-Action Approval Card
+                          </span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                            Saved ₹650 vs Budget
+                          </span>
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between">
+                          <div>
+                            <h4 className="text-base font-bold text-black dark:text-white flex items-center gap-1.5">
+                              <Plane className="w-4 h-4 text-cyan-500" /> IndiGo 6E-243
+                            </h4>
+                            <p className="text-xs text-zinc-500 font-mono">
+                              BLR → COK • Departs 06:15 AM (1h 15m)
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs text-zinc-400 block font-mono">Verified Fare</span>
+                            <span className="text-xl font-bold text-emerald-500 font-mono">₹2,850</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 space-y-1 text-xs">
+                          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Complimentary Hot Dinner Confirmed</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-cyan-500" />
+                            <span>15kg Check-in + 7kg Cabin Baggage Included</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 1-Action Hold Seat Button */}
+                      {seatHeld ? (
+                        <div className="py-2.5 px-3 rounded-lg bg-emerald-500 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-4 h-4" /> Seat Held! Deep-Link Pre-Filled. Zero Forms.
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setSeatHeld(true)}
+                          className="w-full py-2.5 px-3 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md"
+                        >
+                          <span>Hold Seat at ₹2,850 (1-Click)</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+              </AnimatePresence>
+            </div>
+
+            {/* Bottom Status Bar */}
+            <div className="px-4 py-2 bg-zinc-100 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-500">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-black dark:text-white">{currentPhase.title}</span>
+                <span className="hidden md:inline text-zinc-400">• {currentPhase.description}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-zinc-400 flex-shrink-0">
+                <span className="hidden sm:inline">Scroll to progress</span>
+                <ChevronRight className="w-3 h-3 text-cyan-500" />
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Bottom Hint */}
+        <div className="text-center text-xs font-mono text-zinc-400 z-10">
+          Linear/Apple Scroll Experience • 4 Autonomous Execution Phases • Track 2: Beyond the Browser
         </div>
       </div>
     </section>

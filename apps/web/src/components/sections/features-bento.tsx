@@ -3,6 +3,8 @@
 import React from "react";
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
 import { Cpu, ShieldCheck, Globe, CheckCircle2, Zap, Lock, Terminal, Activity } from "lucide-react";
+import { CryptographicCube } from "@/components/ui/cryptographic-cube";
+import { BorderBeam } from "@/components/ui/border-beam";
 
 export function FeaturesBentoSection() {
   return (
@@ -56,25 +58,20 @@ export function FeaturesBentoSection() {
           }
         />
 
-        {/* Tile 2: Cryptographic Merkle Engine */}
+        {/* Tile 2: Cryptographic Merkle Engine with Interactive 3D Cube */}
         <BentoGridItem
           colSpan={4}
           title="Cryptographic Proof Engine"
-          subtitle="W3C C14N DOM Normalization"
-          badge="SHA-256 TREE"
+          subtitle="Interactive 3D W3C C14N Merkle Cube"
+          badge="3D SHA-256 TREE"
           icon={<ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
-          description="GhostBrowser scrubs volatile scripts, whitespace, and dynamic session trackers with a deterministic W3C C14N parser, constructing a 4-Leaf Merkle Tree verified client-side via Web Crypto."
+          description="GhostBrowser scrubs volatile scripts, whitespace, and session trackers with a deterministic W3C C14N parser, constructing a 4-Leaf Merkle Tree verified client-side. Move your mouse to rotate the 3D proof cube."
           header={
-            <div className="w-full p-3.5 rounded-xl bg-zinc-900 text-white font-mono text-[10px] flex flex-col gap-2">
-              <div className="flex items-center justify-between text-zinc-400">
-                <span>MERKLE HIERARCHY</span>
-                <span className="text-emerald-400">VALID</span>
-              </div>
-              <div className="space-y-1">
-                <div className="text-zinc-400">Root: sha256(H01 + H23)</div>
-                <div className="text-zinc-500 pl-2">├── H01: [Price: ₹2,850] + [Airline: IndiGo]</div>
-                <div className="text-zinc-500 pl-2">└── H23: [Route: BLR-COK] + [Canonical DOM]</div>
-              </div>
+            <div className="w-full py-2 flex flex-col items-center justify-center relative overflow-hidden rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
+              <CryptographicCube size={120} />
+              <span className="text-[10px] font-mono text-zinc-400 tracking-wider uppercase mt-1">
+                Move cursor to inspect 3D Merkle faces
+              </span>
             </div>
           }
         />

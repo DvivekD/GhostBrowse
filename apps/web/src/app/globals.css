@@ -52,6 +52,20 @@
   animation: grid 15s linear infinite;
 }
 
+@keyframes border-beam {
+  0% {
+    offset-distance: 0%;
+  }
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+.animate-border-beam {
+  animation: border-beam var(--duration, 8s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
 .swiss-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-subtle);

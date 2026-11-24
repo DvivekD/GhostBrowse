@@ -16,6 +16,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { MerkleModal, DOMProofPayload } from "@/components/ui/merkle-modal";
+import { BorderBeam } from "@/components/ui/border-beam";
+import { CardContainer, CardBody, CardItem } from "@/components/ui/three-d-card";
 
 export interface WorkerStatus {
   worker_id: string;
@@ -526,126 +528,137 @@ export function CommandCenter({
           </div>
         </div>
 
-        {/* Right Column: 1-Action Approval Card */}
-        <div className="lg:col-span-5 flex flex-col">
+        {/* Right Column: 1-Action Approval Card with 3D Tilt & Border Beam */}
+        <div className="lg:col-span-5 flex flex-col justify-center">
           {approvalCard ? (
-            <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border-2 border-zinc-900 dark:border-zinc-100 shadow-md flex flex-col gap-4 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider font-sans">
-                  Verified Recommendation
-                </span>
-                <button
-                  onClick={() => setShowMerkleModal(true)}
-                  className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-[10px] font-mono flex items-center gap-1.5 transition border border-zinc-200 dark:border-zinc-700"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Inspect Merkle Proof</span>
-                </button>
-              </div>
+            <CardContainer containerClassName="w-full py-0">
+              <CardBody className="w-full">
+                <div className="relative bg-white dark:bg-zinc-900 rounded-2xl p-6 border-2 border-zinc-900 dark:border-zinc-100 shadow-xl flex flex-col gap-4 overflow-hidden">
+                  {/* Traveling Border Beam */}
+                  <BorderBeam size={180} duration={6} colorFrom="#10b981" colorTo="#00f0ff" />
 
-              {/* Price & Primary Heading */}
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold tracking-tight text-black dark:text-white font-sans">
-                    ₹{approvalCard.best_option.price_inr.toLocaleString()}
-                  </span>
-                  <span className="text-xs text-zinc-500 font-sans">all taxes & fees included</span>
-                </div>
-                <h3 className="text-base font-bold text-black dark:text-white mt-1 font-sans">
-                  {approvalCard.best_option.airline}
-                </h3>
-              </div>
-
-              {/* Flight Specs Grid */}
-              <div className="grid grid-cols-3 gap-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-center font-sans">
-                <div>
-                  <span className="text-[10px] text-zinc-400 uppercase block font-mono">Departure</span>
-                  <span className="text-xs font-bold text-black dark:text-white">
-                    {approvalCard.best_option.departure_time}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 block">{approvalCard.best_option.origin}</span>
-                </div>
-                <div className="flex flex-col items-center justify-center">
-                  <Plane className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                    {approvalCard.best_option.duration_str}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-zinc-400 uppercase block font-mono">Arrival</span>
-                  <span className="text-xs font-bold text-black dark:text-white">
-                    {approvalCard.best_option.arrival_time}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 block">{approvalCard.best_option.destination}</span>
-                </div>
-              </div>
-
-              {/* Perks List */}
-              <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-300 font-sans">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>{approvalCard.best_option.meal_included ? "Complimentary Hot Meal Included" : "Meal On-Demand"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>{approvalCard.best_option.baggage_allowance}</span>
-                </div>
-                {approvalCard.savings_inr > 0 && (
-                  <div className="text-[11px] text-zinc-500 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                    Saved <span className="text-emerald-700 dark:text-emerald-400 font-semibold">₹{approvalCard.savings_inr.toLocaleString()}</span> below market target.
-                  </div>
-                )}
-              </div>
-
-              {/* 1-Action Approval Trigger */}
-              {isApproved ? (
-                <div className="space-y-3">
-                  <div className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-center font-semibold text-xs flex items-center justify-center gap-2 font-sans">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>Seat Hold Confirmed! Checkout Gateway Armed.</span>
-                  </div>
-                  <div className="p-4 rounded-xl bg-zinc-900 dark:bg-black text-white flex flex-col gap-2.5 border border-zinc-800">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-zinc-400 font-sans">Live Merchant Payment Gateway</span>
-                      <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
-                        ZERO-CLICK ARMED
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-300 font-sans">
-                      GhostBrowser bypassed 47 form fields and verified DOM proof. Click below to view reservation & complete payment.
-                    </p>
-                    <a
-                      href={approvalCard.best_option.booking_deep_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2.5 rounded-lg bg-white dark:bg-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-200 text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-2 shadow-xs font-sans"
+                  <CardItem translateZ={30} className="w-full flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider font-sans">
+                      Verified Recommendation
+                    </span>
+                    <button
+                      onClick={() => setShowMerkleModal(true)}
+                      className="px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-[10px] font-mono flex items-center gap-1.5 transition border border-zinc-200 dark:border-zinc-700"
                     >
-                      <span>Proceed to Payment on {approvalCard.best_option.site_name || "Live Airline Portal"}</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </a>
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Inspect Merkle Proof</span>
+                    </button>
+                  </CardItem>
+
+                  {/* Price & Primary Heading with 3D Parallax */}
+                  <CardItem translateZ={50} className="w-full">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl md:text-4xl font-bold tracking-tight text-black dark:text-white font-sans">
+                        ₹{approvalCard.best_option.price_inr.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-zinc-500 font-sans">all taxes & fees included</span>
+                    </div>
+                    <h3 className="text-base font-bold text-black dark:text-white mt-1 font-sans">
+                      {approvalCard.best_option.airline}
+                    </h3>
+                  </CardItem>
+
+                  {/* Flight Specs Grid */}
+                  <CardItem translateZ={40} className="w-full">
+                    <div className="grid grid-cols-3 gap-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-center font-sans">
+                      <div>
+                        <span className="text-[10px] text-zinc-400 uppercase block font-mono">Departure</span>
+                        <span className="text-xs font-bold text-black dark:text-white">
+                          {approvalCard.best_option.departure_time}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 block">{approvalCard.best_option.origin}</span>
+                      </div>
+                      <div className="flex flex-col items-center justify-center">
+                        <Plane className="w-3.5 h-3.5 text-zinc-400" />
+                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                          {approvalCard.best_option.duration_str}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-zinc-400 uppercase block font-mono">Arrival</span>
+                        <span className="text-xs font-bold text-black dark:text-white">
+                          {approvalCard.best_option.arrival_time}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 block">{approvalCard.best_option.destination}</span>
+                      </div>
+                    </div>
+                  </CardItem>
+
+                  {/* Perks List */}
+                  <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-300 font-sans">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>{approvalCard.best_option.meal_included ? "Complimentary Hot Meal Included" : "Meal On-Demand"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>{approvalCard.best_option.baggage_allowance}</span>
+                    </div>
+                    {approvalCard.savings_inr > 0 && (
+                      <div className="text-[11px] text-zinc-500 pt-1 border-t border-zinc-100 dark:border-zinc-800">
+                        Saved <span className="text-emerald-700 dark:text-emerald-400 font-semibold">₹{approvalCard.savings_inr.toLocaleString()}</span> below market target.
+                      </div>
+                    )}
                   </div>
+
+                  {/* 1-Action Approval Trigger with 3D Depth */}
+                  <CardItem translateZ={60} className="w-full">
+                    {isApproved ? (
+                      <div className="space-y-3">
+                        <div className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-center font-semibold text-xs flex items-center justify-center gap-2 font-sans">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>Seat Hold Confirmed! Checkout Gateway Armed.</span>
+                        </div>
+                        <div className="p-4 rounded-xl bg-zinc-900 dark:bg-black text-white flex flex-col gap-2.5 border border-zinc-800">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-zinc-400 font-sans">Live Merchant Payment Gateway</span>
+                            <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+                              ZERO-CLICK ARMED
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-300 font-sans">
+                            GhostBrowser bypassed 47 form fields and verified DOM proof. Click below to view reservation & complete payment.
+                          </p>
+                          <a
+                            href={approvalCard.best_option.booking_deep_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-lg bg-white dark:bg-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-200 text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-2 shadow-xs font-sans"
+                          >
+                            <span>Proceed to Payment on {approvalCard.best_option.site_name || "Live Airline Portal"}</span>
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => {
+                            setIsApproved(true);
+                            speakText("Seat hold approved. Zero manual form fields required. Opening live payment checkout.");
+                            if (typeof window !== "undefined" && approvalCard.best_option.booking_deep_link) {
+                              window.open(approvalCard.best_option.booking_deep_link, "_blank");
+                            }
+                          }}
+                          className="w-full py-3.5 rounded-lg bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs md:text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-2 font-sans"
+                        >
+                          <span>{approvalCard.approval_button_text}</span>
+                          <ArrowUpRight className="w-4 h-4" />
+                        </button>
+                        <p className="text-[11px] text-zinc-400 text-center font-sans">
+                          Opens verified booking & payment portal in a new tab with zero form filling.
+                        </p>
+                      </div>
+                    )}
+                  </CardItem>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => {
-                      setIsApproved(true);
-                      speakText("Seat hold approved. Zero manual form fields required. Opening live payment checkout.");
-                      if (typeof window !== "undefined" && approvalCard.best_option.booking_deep_link) {
-                        window.open(approvalCard.best_option.booking_deep_link, "_blank");
-                      }
-                    }}
-                    className="w-full py-3.5 rounded-lg bg-black dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-xs md:text-sm tracking-wide transition transform hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-2 font-sans"
-                  >
-                    <span>{approvalCard.approval_button_text}</span>
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                  <p className="text-[11px] text-zinc-400 text-center font-sans">
-                    Opens verified booking & payment portal in a new tab with zero form filling.
-                  </p>
-                </div>
-              )}
-            </div>
+              </CardBody>
+            </CardContainer>
           ) : (
             <div className="bg-white dark:bg-zinc-900 rounded-xl p-8 border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col items-center justify-center text-center gap-3 text-zinc-400 min-h-[360px]">
               <Bot className="w-10 h-10 stroke-1 text-zinc-300 dark:text-zinc-700" />
