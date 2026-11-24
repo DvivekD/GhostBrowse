@@ -280,6 +280,7 @@ export function CheckoutVaultModal({ isOpen, onClose, data }: CheckoutVaultModal
 
   // Best direct actionable URL (pre-selected checkout or deep booking)
   const directActionUrl = data.directBookingUrl || data.merchantUrl;
+  const payPortalUrl = `/pay?domain=${data.domain}&title=${encodeURIComponent(data.title)}&price=${encodeURIComponent(data.priceFormatted)}&amount=${data.priceNumber ?? ""}&merchant=${encodeURIComponent(data.merchantName)}&pnr=${encodeURIComponent(pnrId)}&address=${encodeURIComponent(passengerAddress)}&passenger=${encodeURIComponent(passengerName)}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
@@ -568,7 +569,7 @@ export function CheckoutVaultModal({ isOpen, onClose, data }: CheckoutVaultModal
                 {/* Direct Action Link to live merchant site */}
                 <div className="flex items-center justify-between px-1">
                   <a
-                    href={directActionUrl}
+                    href={payPortalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[11px] text-zinc-400 hover:text-emerald-400 font-sans flex items-center gap-1 transition"
@@ -877,7 +878,7 @@ export function CheckoutVaultModal({ isOpen, onClose, data }: CheckoutVaultModal
               <div className="w-full space-y-2 pt-2">
                 {/* Prominent Primary Button: Launch Live Merchant Session */}
                 <a
-                  href={directActionUrl}
+                  href={payPortalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-3.5 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-xl font-sans"
@@ -885,6 +886,19 @@ export function CheckoutVaultModal({ isOpen, onClose, data }: CheckoutVaultModal
                   <span>Launch Live Merchant Checkout Session</span>
                   <ExternalLink className="w-4 h-4" />
                 </a>
+
+                {/* Secondary Button: Raw merchant store page */}
+                {directActionUrl && (
+                  <a
+                    href={directActionUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2 rounded-lg bg-zinc-900/60 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-[11px] flex items-center justify-center gap-1.5 transition font-sans"
+                  >
+                    <span>Open raw merchant store page (Requires manual login)</span>
+                    <ExternalLink className="w-3 h-3 text-zinc-500" />
+                  </a>
+                )}
 
                 {/* Secondary Actions: Download JSON & Done */}
                 <div className="grid grid-cols-2 gap-2">

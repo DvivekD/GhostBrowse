@@ -16,6 +16,7 @@ import {
   Briefcase,
   Sparkles,
   Lock,
+  ExternalLink,
 } from "lucide-react";
 import { MerkleModal, DOMProofPayload } from "@/components/ui/merkle-modal";
 import { BorderBeam } from "@/components/ui/border-beam";
@@ -443,7 +444,7 @@ export function CommandCenter({
             subtitle: "Flipkart Assured • ₹4,500 Instant HDFC Card Discount Auto-Applied",
             merchant_name: "Flipkart Assured",
             merchant_url: "https://www.flipkart.com/apple-macbook-air-m3-16gb-256gb-ssd-macos-space-grey-mrdh3hn-a/p/itm5b0e50f38b488",
-            direct_booking_url: "https://www.flipkart.com/apple-macbook-air-m3-16gb-256gb-ssd-macos-space-grey-mrdh3hn-a/p/itm5b0e50f38b488",
+            direct_booking_url: "/pay?domain=shopping&title=Apple%20MacBook%20Air%20M3%2016GB&merchant=Flipkart%20Assured&price=%E2%82%B984%2C990&amount=84990",
             price_formatted: "₹84,990",
             price_number: 84990,
             savings_formatted: "₹4,500",
@@ -494,8 +495,8 @@ export function CommandCenter({
             title: "Butter Chicken + 2 Butter Garlic Naan",
             subtitle: "Meghana Foods (4.6 ★) • 25 Mins Guaranteed Delivery",
             merchant_name: "Swiggy Gourmet",
-            merchant_url: "https://www.swiggy.com/restaurants/meghana-foods-indiranagar-bangalore-10575",
-            direct_booking_url: "https://www.swiggy.com/restaurants/meghana-foods-indiranagar-bangalore-10575",
+            merchant_url: "https://www.swiggy.com/restaurants/meghana-foods-50-feet-main-road-kumaraswamy-layout-bangalore-5039",
+            direct_booking_url: "/pay?domain=food&title=Butter%20Chicken%20%2B%202%20Butter%20Garlic%20Naan&merchant=Swiggy%20Gourmet&price=%E2%82%B9380&amount=380",
             price_formatted: "₹380",
             price_number: 380,
             savings_formatted: "₹65",
@@ -547,7 +548,7 @@ export function CommandCenter({
             subtitle: "arXiv:2501.12948 • Multi-stage Distillation Architecture",
             merchant_name: "arXiv Open Access",
             merchant_url: "https://arxiv.org/abs/2501.12948",
-            direct_booking_url: "https://arxiv.org/pdf/2501.12948",
+            direct_booking_url: "/pay?domain=research&title=DeepSeek-R1%20Reasoning%20Synthesis&merchant=arXiv%20Open%20Access&price=Free",
             price_formatted: "Free (Open Access)",
             price_number: 0,
             specs: [
@@ -598,7 +599,7 @@ export function CommandCenter({
             subtitle: "Anthropic / Frontier AI Lab • $185,000 - $240,000 / yr",
             merchant_name: "Greenhouse.io Portal",
             merchant_url: "https://boards.greenhouse.io",
-            direct_booking_url: "https://boards.greenhouse.io",
+            direct_booking_url: "/pay?domain=career&title=Staff%20AI%20Engineer%20Application&merchant=Greenhouse.io&price=Free",
             price_formatted: "$185,000 / yr",
             price_number: 0,
             savings_formatted: "100% Automated",
@@ -661,7 +662,7 @@ export function CommandCenter({
             subtitle: "Non-stop • Departure 06:15 AM • 1h 15m duration",
             merchant_name: "IndiGo Airline Portal",
             merchant_url: `https://www.makemytrip.com/flight/search?itinerary=${originCode}-${destCode}-${new Date(Date.now() + 86400000).toISOString().slice(0,10)}&tripType=O&paxType=A-1_C-0_I-0&intl=false&cabinClass=E`,
-            direct_booking_url: `https://www.goindigo.in/booking/flight-select.html?origin=${originCode}&destination=${destCode}&date=${new Date(Date.now() + 86400000).toISOString().slice(0,10)}`,
+            direct_booking_url: `/pay?domain=travel&title=${encodeURIComponent(airlineName + " (" + originCode + " → " + destCode + ")")}&merchant=IndiGo%20Airlines&price=${encodeURIComponent("₹" + priceNum.toLocaleString())}&amount=${priceNum}`,
             price_formatted: `₹${priceNum.toLocaleString()}`,
             price_number: priceNum,
             savings_formatted: "₹650",
@@ -1023,13 +1024,24 @@ export function CommandCenter({
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                           <span>1-Click Approval Armed &bull; Inventory Locked</span>
                         </div>
-                        <button
-                          onClick={handleOpenCheckoutVault}
-                          className="w-full py-3 rounded-lg bg-white dark:bg-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-200 text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-2 shadow-xs font-sans"
-                        >
-                          <Lock className="w-3.5 h-3.5" />
-                          <span>Re-open Checkout Vault ({approvalCard.best_option.price_formatted})</span>
-                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <button
+                            onClick={handleOpenCheckoutVault}
+                            className="w-full py-2.5 rounded-lg bg-white dark:bg-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-200 text-black font-semibold text-xs tracking-wide transition flex items-center justify-center gap-1.5 shadow-xs font-sans"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Vault ({approvalCard.best_option.price_formatted})</span>
+                          </button>
+                          <a
+                            href={approvalCard.best_option.direct_booking_url || "/pay"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 font-sans"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Merchant /pay</span>
+                          </a>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex flex-col gap-2">
@@ -1040,6 +1052,15 @@ export function CommandCenter({
                           <Lock className="w-4 h-4" />
                           <span>{approvalCard.approval_button_text}</span>
                         </button>
+                        <a
+                          href={approvalCard.best_option.direct_booking_url || "/pay"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-black dark:hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition border border-zinc-200 dark:border-zinc-800 font-sans"
+                        >
+                          <ExternalLink className="w-3 h-3 text-emerald-500" />
+                          <span>Open Dedicated Merchant Pay Portal (/pay)</span>
+                        </a>
                         <p className="text-[11px] text-zinc-400 text-center font-sans">
                           Opens authentic 1-Click Checkout Vault with inventory held and zero form filling.
                         </p>
