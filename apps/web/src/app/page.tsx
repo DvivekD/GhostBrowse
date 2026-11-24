@@ -5,6 +5,7 @@ import { Navbar } from "@/components/navigation/navbar";
 import { RetroGrid } from "@/components/ui/retro-grid";
 import { ContainerScroll } from "@/components/ui/container-scroll";
 import { HeroSection } from "@/components/sections/hero-section";
+import { ScrollDrivenDemo } from "@/components/sections/scroll-driven-demo";
 import { CommandCenter } from "@/components/sections/command-center";
 import { FeaturesBentoSection } from "@/components/sections/features-bento";
 import { VerticalsSection } from "@/components/sections/verticals-section";
@@ -47,24 +48,26 @@ export default function GhostBrowserLandingPage() {
         onScrollToEngine={scrollToCommandCenter}
       />
 
-      {/* Hero Section with 3D Perspective Container Scroll */}
+      {/* Hero Landing Section */}
       <main className="flex-1 flex flex-col relative z-10">
-        <ContainerScroll
-          titleComponent={
-            <HeroSection
-              query={query}
-              setQuery={setQuery}
-              onExecuteQuery={handleExecuteFromHero}
-              onMicToggle={() => setIsRecording(!isRecording)}
-              isRecording={isRecording}
-            />
-          }
-        >
+        <HeroSection
+          query={query}
+          setQuery={setQuery}
+          onExecuteQuery={handleExecuteFromHero}
+          onMicToggle={() => setIsRecording(!isRecording)}
+          isRecording={isRecording}
+        />
+
+        {/* Scroll-Driven Dynamic Execution Lifecycle Section */}
+        <ScrollDrivenDemo />
+
+        {/* Interactive Autonomous Command Center Section */}
+        <section className="w-full max-w-6xl mx-auto px-4 py-16 border-t border-zinc-200 dark:border-zinc-800">
           <CommandCenter
             initialQuery={query}
             audioEnabled={audioEnabled}
           />
-        </ContainerScroll>
+        </section>
 
         {/* 4 Core Innovations: 12-Column Bento Grid */}
         <FeaturesBentoSection />
