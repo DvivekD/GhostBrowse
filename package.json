@@ -1,0 +1,15 @@
+{
+  "name": "ghostbrowse",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter ghostbrowser-web dev",
+    "build": "pnpm --filter ghostbrowser-web build",
+    "start": "pnpm --filter ghostbrowser-web start"
+  },
+  "devDependencies": {
+    "next": "16.4.6",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  }
+}
